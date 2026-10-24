@@ -1,0 +1,9 @@
+{
+  "name": "nirhalla-art-web",
+  "version": "1.0.0",
+  "description": "Nirhalla Art Studio - Web to Minecraft Image Bridge for nirhalla.online",
+  "main": "index.html",
+  "dependencies": {
+    "@netlify/blobs": "^7.1.0"
+  }
+}

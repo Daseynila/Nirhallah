@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nirhalla Art Studio — Картины для Minecraft</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="background-decor"></div>
+
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">🏛️</span>
+      <div class="logo-text">
+        <h1>NIRHALLA ART STUDIO</h1>
+        <p>Имперская мастерская холстов и картин для Minecraft (Java & Bedrock)</p>
+      </div>
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="tabEditorBtn">🎨 Создать холст</button>
+      <button class="nav-tab" id="tabGalleryBtn">🖼️ Галерея сервера <span class="tab-badge" id="galleryCountBadge">0</span></button>
+    </nav>
+    <div class="header-badges">
+      <span class="badge badge-accent">⚡ Без модов</span>
+      <span class="badge badge-gold">💎 HD Дизеринг</span>
+      <span class="badge badge-cyan">📱 Java & Geyser</span>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- Секция редактора -->
+    <div class="editor-view" id="editorView">
+      <div class="editor-grid">
+        <!-- Левая колонка: Загрузка и Настройки -->
+        <section class="card settings-panel">
+          <h2 class="card-title">1. Загрузка изображения</h2>
+          
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" class="file-input">
+            <div class="dropzone-content">
+              <div class="dropzone-icon">🖼️</div>
+              <p class="dropzone-text"><strong>Выберите фото</strong> или перетащите файл сюда</p>
+              <span class="dropzone-sub">Поддерживаются PNG, JPG, WEBP (или вставьте через Ctrl+V)</span>
+            </div>
+          </div>
+
+          <h2 class="card-title mt-4">2. Размер картины на стене</h2>
+          <div class="size-selector" id="sizeSelector">
+            <button class="size-btn active" data-w="1" data-h="1">
+              <span class="size-val">1 × 1</span>
+              <span class="size-desc">128×128 px</span>
+            </button>
+            <button class="size-btn" data-w="2" data-h="1">
+              <span class="size-val">2 × 1</span>
+              <span class="size-desc">256×128 px</span>
+            </button>
+            <button class="size-btn" data-w="2" data-h="2">
+              <span class="size-val">2 × 2</span>
+              <span class="size-desc">256×256 px</span>
+            </button>
+            <button class="size-btn" data-w="3" data-h="2">
+              <span class="size-val">3 × 2</span>
+              <span class="size-desc">384×256 px</span>
+            </button>
+            <button class="size-btn" data-w="4" data-h="2">
+              <span class="size-val">4 × 2</span>
+              <span class="size-desc">512×256 px</span>
+            </button>
+            <button class="size-btn" data-w="4" data-h="3">
+              <span class="size-val">4 × 3</span>
+              <span class="size-desc">512×384 px</span>
+            </button>
+          </div>
+
+          <h2 class="card-title mt-4">3. Режим обработки</h2>
+          <div class="options-box">
+            <label class="toggle-control">
+              <input type="checkbox" id="ditherToggle" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Дизеринг Флойда-Стейнберга (HD цвета)</span>
+            </label>
+            <p class="field-hint">Смешивает оттенки для фотореалистичных градиентов в палитре карт Майнкрафта.</p>
+
+            <label class="toggle-control mt-2">
+              <input type="checkbox" id="gridToggle" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Показывать сетку блоков на стене</span>
+            </label>
+          </div>
+
+          <button class="btn btn-primary" id="generateBtn" disabled>
+            ✨ Создать холст для Майнкрафта
+          </button>
+        </section>
+
+        <!-- Правая колонка: Интерактивный предпросмотр -->
+        <section class="card preview-panel">
+          <div class="preview-header">
+            <h2 class="card-title">Интерактивный предпросмотр на стене</h2>
+            <div class="view-toggles">
+              <button class="pill-btn active" id="viewWallBtn">Стена дома</button>
+              <button class="pill-btn" id="viewPureBtn">Чистый арт</button>
+            </div>
+          </div>
+
+          <div class="canvas-wrapper" id="canvasWrapper">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-icon">🎨</div>
+              <h3>Холст пуст</h3>
+              <p>Загрузите изображение слева, чтобы увидеть, как оно будет выглядеть на стене вашего дома в Майнкрафте.</p>
+            </div>
+            <div class="wall-scene" id="wallScene" style="display: none;">
+              <div class="frame-container" id="frameContainer">
+                <canvas id="mainCanvas"></canvas>
+                <div class="block-grid-overlay" id="gridOverlay"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-bar" id="infoBar" style="display: none;">
+            <div class="info-item">
+              <span class="info-label">Размер в блоках:</span>
+              <span class="info-value" id="infoBlocks">3 × 2 блоков</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Игровых карт:</span>
+              <span class="info-value" id="infoMaps">6 карт</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Разрешение холста:</span>
+              <span class="info-value" id="infoResolution">384 × 256 px</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Секция галереи всех загруженных картин -->
+    <div class="gallery-view" id="galleryView" style="display: none;">
+      <div class="gallery-header-bar">
+        <div>
+          <h2 class="section-title">Каталог картин Нирхаллы</h2>
+          <p class="section-subtitle">Здесь хранятся все работы, загруженные на сайт. Любой игрок может взять код и повесить картину себе в дом!</p>
+        </div>
+        <div class="gallery-actions">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="gallerySearchInput" placeholder="Поиск по коду (напр. 4912)...">
+          </div>
+          <button class="btn btn-secondary" id="refreshGalleryBtn">🔄 Обновить</button>
+        </div>
+      </div>
+
+      <div class="gallery-loading" id="galleryLoading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Загрузка каталога с сервера nirhalla.online...</p>
+      </div>
+
+      <div class="empty-state gallery-empty" id="galleryEmpty" style="display: none;">
+        <div class="empty-icon">🖼️</div>
+        <h3>В галерее пока нет картин</h3>
+        <p>Перейдите на вкладку «Создать холст» и загрузите первую картину на сервер!</p>
+      </div>
+
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- Карточки картин генерируются через JavaScript -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Модальное окно получения кода для игры -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal-content">
+      <div class="modal-badge">ГОТОВО К УСТАНОВКЕ</div>
+      <h2 class="modal-title">Ваша картина готова!</h2>
+      <p class="modal-desc">Используйте этот код на сервере, чтобы получить холст в игре:</p>
+
+      <div class="code-box">
+        <span class="code-prefix">КОД АРТА:</span>
+        <span class="code-number" id="resultCode">4912</span>
+      </div>
+
+      <div class="command-box">
+        <label>Команда для чата в игре:</label>
+        <div class="input-with-button">
+          <input type="text" id="commandInput" readonly value="/art 4912">
+          <button class="btn btn-copy" id="copyCmdBtn">📋 Скопировать</button>
+        </div>
+      </div>
+
+      <div class="instruction-steps">
+        <div class="step">
+          <span class="step-num">1</span>
+          <p>Вставьте команду <code>/art 4912</code> в чат игры (на ПК или телефоне).</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <p>Получите предмет <strong>«Холст картины»</strong> в руки.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <p>Подойдите к стене дома и нажмите <strong>ПКМ</strong> — плагин сам развернет картину на стене!</p>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="closeModalBtn">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>Nirhalla Art Studio • Официальный сервис для сервера <strong>nirhalla.online</strong> • Совместимо с Paper, Spigot, GeyserMC и Floodgate • 2026</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
