@@ -32,11 +32,12 @@ exports.handler = async (event, context) => {
   try {
     const items = [];
 
+    let rawList = null;
     // 1. Try reading from Netlify Blobs
     try {
       const store = getSafeStore(event);
-      const res = await store.list();
-      const blobs = res.blobs || [];
+      rawList = await store.list();
+      const blobs = rawList.blobs || [];
       
       for (const b of blobs) {
         // Skip internal duplicate hashes
@@ -85,6 +86,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         count: items.length,
+        rawList,
         blobError,
         items
       }),
