@@ -39,9 +39,12 @@ exports.handler = async (event, context) => {
       const blobs = res.blobs || [];
       
       for (const b of blobs) {
+        // Skip internal duplicate hashes
+        if (b.key.startsWith("hash_")) continue;
+
         try {
           const data = await store.get(b.key, { type: "json" });
-          if (data) {
+          if (data && data.code) {
             items.push({
               code: data.code || b.key,
               width: data.width || 1,
@@ -62,6 +65,7 @@ exports.handler = async (event, context) => {
     // 2. Fallback to in-memory cache
     if (items.length === 0 && global.__artCache.size > 0) {
       for (const [code, data] of global.__artCache.entries()) {
+        if (code.startsWith("hash_")) continue;
         items.push({
           code: data.code || code,
           width: data.width || 1,

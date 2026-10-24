@@ -152,6 +152,7 @@
             <input type="text" id="gallerySearchInput" placeholder="Поиск по коду (напр. 4912)...">
           </div>
           <button class="btn btn-secondary" id="refreshGalleryBtn">🔄 Обновить</button>
+          <button class="btn btn-mod" id="modToggleBtn">🛡️ Вход модератора</button>
         </div>
       </div>
 
@@ -175,7 +176,10 @@
   <!-- Модальное окно получения кода для игры -->
   <div class="modal-overlay" id="resultModal">
     <div class="modal-content">
-      <div class="modal-badge">ГОТОВО К УСТАНОВКЕ</div>
+      <div class="modal-badge" id="modalBadge">ГОТОВО К УСТАНОВКЕ</div>
+      <div class="duplicate-notice" id="duplicateNotice" style="display: none;">
+        ⚡ Этот арт уже есть в базе данных! Выдан его постоянный код.
+      </div>
       <h2 class="modal-title">Ваша картина готова!</h2>
       <p class="modal-desc">Используйте этот код на сервере, чтобы получить холст в игре:</p>
 

@@ -55,6 +55,8 @@ const copyCmdBtn = document.getElementById('copyCmdBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const viewWallBtn = document.getElementById('viewWallBtn');
 const viewPureBtn = document.getElementById('viewPureBtn');
+const duplicateNotice = document.getElementById('duplicateNotice');
+const modalBadge = document.getElementById('modalBadge');
 
 // Initialize Drag & Drop
 ['dragenter', 'dragover'].forEach(eventName => {
@@ -272,14 +274,17 @@ function renderGridOverlay(width, height) {
   }
 }
 
-// Generate Art Code Action (Real Cloud Upload with Offline Fallback)
+// Generate Art Code Action (Real Cloud Upload with Anti-Spam Duplicate Detection)
 generateBtn.addEventListener('click', async () => {
+  if (generateBtn.disabled) return;
+
   const originalText = generateBtn.textContent;
   generateBtn.disabled = true;
   generateBtn.textContent = '⏳ Сохранение в облако nirhalla.online...';
 
   const dataUrl = mainCanvas.toDataURL('image/png');
   let code = null;
+  let isDuplicate = false;
 
   try {
     const res = await fetch('/api/upload', {
@@ -295,6 +300,7 @@ generateBtn.addEventListener('click', async () => {
     if (res.ok) {
       const data = await res.json();
       code = data.code;
+      isDuplicate = Boolean(data.isDuplicate);
     } else {
       console.warn("Server responded with error:", res.status);
     }
@@ -305,7 +311,6 @@ generateBtn.addEventListener('click', async () => {
   // Fallback for offline testing or direct file preview
   if (!code) {
     code = Math.floor(1000 + Math.random() * 9000);
-    // Store in localStorage for testing
     try {
       localStorage.setItem('art_' + code, JSON.stringify({
         code,
@@ -318,11 +323,33 @@ generateBtn.addEventListener('click', async () => {
 
   resultCode.textContent = code;
   commandInput.value = `/art ${code}`;
+
+  // Handle duplicate indicator
+  if (duplicateNotice) {
+    duplicateNotice.style.display = isDuplicate ? 'block' : 'none';
+  }
+  if (modalBadge) {
+    modalBadge.textContent = isDuplicate ? 'АРТ УЖЕ В БАЗЕ' : 'ГОТОВО К УСТАНОВКЕ';
+    modalBadge.style.background = isDuplicate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.2)';
+    modalBadge.style.color = isDuplicate ? '#93c5fd' : 'var(--accent-gold)';
+  }
+
   resultModal.style.display = 'flex';
 
-  generateBtn.disabled = false;
-  generateBtn.textContent = originalText;
-  
+  // Anti-spam Cooldown (5 seconds countdown on generate button)
+  let cooldownSec = 5;
+  generateBtn.textContent = `⏳ Подождите (${cooldownSec}с)...`;
+  const cooldownInterval = setInterval(() => {
+    cooldownSec--;
+    if (cooldownSec <= 0) {
+      clearInterval(cooldownInterval);
+      generateBtn.disabled = false;
+      generateBtn.textContent = originalText;
+    } else {
+      generateBtn.textContent = `⏳ Подождите (${cooldownSec}с)...`;
+    }
+  }, 1000);
+
   // Refresh gallery count
   loadGallery(false);
 });
@@ -359,8 +386,43 @@ const galleryLoading = document.getElementById('galleryLoading');
 const gallerySearchInput = document.getElementById('gallerySearchInput');
 const refreshGalleryBtn = document.getElementById('refreshGalleryBtn');
 const galleryCountBadge = document.getElementById('galleryCountBadge');
+const modToggleBtn = document.getElementById('modToggleBtn');
 
 let cachedGalleryItems = [];
+
+// Moderator State Manager
+function updateModBtn() {
+  const isMod = Boolean(sessionStorage.getItem('nirhalla_mod_pass'));
+  if (modToggleBtn) {
+    if (isMod) {
+      modToggleBtn.classList.add('active');
+      modToggleBtn.textContent = '🛡️ Модератор (Выйти)';
+    } else {
+      modToggleBtn.classList.remove('active');
+      modToggleBtn.textContent = '🛡️ Вход модератора';
+    }
+  }
+}
+
+if (modToggleBtn) {
+  modToggleBtn.addEventListener('click', () => {
+    const isMod = Boolean(sessionStorage.getItem('nirhalla_mod_pass'));
+    if (isMod) {
+      if (confirm('Выйти из режима модератора?')) {
+        sessionStorage.removeItem('nirhalla_mod_pass');
+        updateModBtn();
+      }
+    } else {
+      const pass = prompt('Введите пароль модератора:');
+      if (pass && pass.trim()) {
+        sessionStorage.setItem('nirhalla_mod_pass', pass.trim());
+        updateModBtn();
+        alert('✅ Режим модератора активирован!');
+      }
+    }
+  });
+}
+updateModBtn();
 
 // Tab Switchers
 tabEditorBtn.addEventListener('click', () => {
@@ -499,19 +561,50 @@ function renderGalleryGrid() {
       });
     });
 
-    // Delete Button Action
+    // Delete Button Action (Protected by Moderator Password)
     const delBtn = card.querySelector('.btn-delete');
     delBtn.addEventListener('click', async () => {
-      if (!confirm(`Удалить холст #${item.code} из базы данных сайта?`)) return;
+      let modPass = sessionStorage.getItem('nirhalla_mod_pass');
+      if (!modPass) {
+        modPass = prompt('🔒 Для удаления картины введите пароль модератора:');
+        if (!modPass || !modPass.trim()) return;
+        modPass = modPass.trim();
+        sessionStorage.setItem('nirhalla_mod_pass', modPass);
+        updateModBtn();
+      }
+
+      if (!confirm(`Вы уверены, что хотите удалить холст #${item.code} из базы сервера?`)) return;
 
       try {
-        await fetch(`/api/delete?code=${item.code}`, { method: 'POST' });
-      } catch (e) {}
+        const res = await fetch(`/api/delete?code=${item.code}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Mod-Password': modPass
+          },
+          body: JSON.stringify({ code: item.code, password: modPass })
+        });
 
-      localStorage.removeItem('art_' + item.code);
-      cachedGalleryItems = cachedGalleryItems.filter(it => String(it.code) !== String(item.code));
-      galleryCountBadge.textContent = cachedGalleryItems.length;
-      renderGalleryGrid();
+        if (res.status === 403) {
+          alert('❌ Ошибка: Неверный пароль модератора! Доступ отклонен.');
+          sessionStorage.removeItem('nirhalla_mod_pass');
+          updateModBtn();
+          return;
+        }
+
+        if (!res.ok) {
+          alert('Ошибка удаления: ' + res.statusText);
+          return;
+        }
+
+        alert(`✅ Холст #${item.code} успешно удален из базы!`);
+        localStorage.removeItem('art_' + item.code);
+        cachedGalleryItems = cachedGalleryItems.filter(it => String(it.code) !== String(item.code));
+        galleryCountBadge.textContent = cachedGalleryItems.length;
+        renderGalleryGrid();
+      } catch (e) {
+        alert('Ошибка соединения с сервером при удалении.');
+      }
     });
 
     galleryGrid.appendChild(card);

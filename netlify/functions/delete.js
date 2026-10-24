@@ -2,6 +2,8 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 
 global.__artCache = global.__artCache || new Map();
 
+const MOD_PASSWORD = process.env.MOD_PASSWORD || "nirhalla2026";
+
 function getSafeStore(event) {
   try {
     if (event && event.blobs) {
@@ -16,7 +18,7 @@ function getSafeStore(event) {
 exports.handler = async (event, context) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Mod-Password",
     "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
   };
 
@@ -35,13 +37,36 @@ exports.handler = async (event, context) => {
     } catch (e) {}
 
     const code = payload.code || event.queryStringParameters?.code;
+    const providedPass = payload.password || event.headers["x-mod-password"] || event.queryStringParameters?.password;
+
+    // 🔒 Security Check: Require Moderator Password
+    if (!providedPass || providedPass !== MOD_PASSWORD) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: "Неверный пароль модератора! Доступ запрещен."
+        }),
+      };
+    }
+
     if (!code) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing required parameter: code" }) };
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "Missing required parameter: code" }),
+      };
     }
 
     // Delete from Netlify Blobs
     try {
       const store = getSafeStore(event);
+      // Try to clean up hash key as well
+      const artData = await store.get(code, { type: "json" });
+      if (artData && artData.hashKey) {
+        await store.delete(artData.hashKey);
+      }
       await store.delete(code);
     } catch (blobErr) {
       console.warn("Netlify Blobs delete error:", blobErr.message);
@@ -55,7 +80,10 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 200,
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ success: true, message: `Artwork #${code} deleted successfully` }),
+      body: JSON.stringify({
+        success: true,
+        message: `Холст #${code} успешно удален модератором.`
+      }),
     };
   } catch (err) {
     return {

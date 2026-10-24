@@ -1,4 +1,5 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
+const crypto = require("crypto");
 
 // In-memory fallback cache for development or serverless session
 global.__artCache = global.__artCache || new Map();
@@ -42,24 +43,67 @@ exports.handler = async (event, context) => {
       };
     }
 
+    const parsedWidth = parseInt(width);
+    const parsedHeight = parseInt(height);
+
+    // Compute digital fingerprint (hash) of image + dimensions
+    const hash = crypto.createHash("sha256").update(image + "_" + parsedWidth + "_" + parsedHeight).digest("hex").substring(0, 16);
+    const hashKey = "hash_" + hash;
+
+    const store = getSafeStore(event);
+
+    // 1. Check if identical artwork was already uploaded (Anti-spam / Duplicate prevention)
+    let existingCode = null;
+    try {
+      existingCode = await store.get(hashKey, { type: "text" });
+    } catch (e) {}
+
+    // Check memory fallback
+    if (!existingCode && global.__artCache) {
+      for (const [cd, item] of global.__artCache.entries()) {
+        if (!cd.startsWith("hash_") && item.image === image && item.width === parsedWidth && item.height === parsedHeight) {
+          existingCode = cd;
+          break;
+        }
+      }
+    }
+
+    if (existingCode) {
+      return {
+        statusCode: 200,
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          success: true,
+          code: existingCode,
+          width: parsedWidth,
+          height: parsedHeight,
+          isDuplicate: true,
+          savedToBlobs: true,
+          message: "Этот холст уже был создан ранее! Используйте код ниже."
+        }),
+      };
+    }
+
     // Generate random 4-digit code (1000 - 9999)
     const code = String(Math.floor(1000 + Math.random() * 9000));
     const artData = {
       code,
       image, // base64 data url
-      width: parseInt(width),
-      height: parseInt(height),
+      width: parsedWidth,
+      height: parsedHeight,
+      hashKey,
       createdAt: Date.now()
     };
 
-    // 1. Try saving to Netlify Blobs (production)
+    // Save art data and duplicate hash pointer to Netlify Blobs
     let savedToBlobs = false;
     let blobErrorMsg = null;
     try {
-      const store = getSafeStore(event);
       await store.setJSON(code, artData, {
-        metadata: { width: String(width), height: String(height) }
+        metadata: { width: String(parsedWidth), height: String(parsedHeight) }
       });
+      // Store hash pointer for instant duplicate lookup
+      await store.set(hashKey, code);
       savedToBlobs = true;
       console.log(`[Art Upload] Saved art to Blobs with code: ${code}`);
     } catch (blobErr) {
@@ -67,7 +111,7 @@ exports.handler = async (event, context) => {
       console.warn("Netlify Blobs not available:", blobErr.message);
     }
 
-    // 2. Also save in memory cache
+    // Save in memory cache
     global.__artCache.set(code, artData);
 
     return {
@@ -76,8 +120,9 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         code,
-        width: parseInt(width),
-        height: parseInt(height),
+        width: parsedWidth,
+        height: parsedHeight,
+        isDuplicate: false,
         savedToBlobs,
         blobError: blobErrorMsg,
         message: "Art uploaded successfully"
