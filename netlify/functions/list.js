@@ -86,8 +86,6 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         count: items.length,
-        rawList,
-        blobError,
         items
       }),
     };
