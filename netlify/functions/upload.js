@@ -1,7 +1,18 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 
 // In-memory fallback cache for development or serverless session
 global.__artCache = global.__artCache || new Map();
+
+function getSafeStore(event) {
+  try {
+    if (event && event.blobs) {
+      connectLambda(event);
+    }
+  } catch (e) {
+    console.warn("connectLambda error:", e.message);
+  }
+  return getStore("nirhalla-art-cache");
+}
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -42,19 +53,22 @@ exports.handler = async (event, context) => {
     };
 
     // 1. Try saving to Netlify Blobs (production)
+    let savedToBlobs = false;
+    let blobErrorMsg = null;
     try {
-      const store = getStore("nirhalla-art-cache");
+      const store = getSafeStore(event);
       await store.setJSON(code, artData, {
         metadata: { width: String(width), height: String(height) }
       });
+      savedToBlobs = true;
+      console.log(`[Art Upload] Saved art to Blobs with code: ${code}`);
     } catch (blobErr) {
-      console.warn("Netlify Blobs not available, using in-memory store:", blobErr.message);
+      blobErrorMsg = blobErr.message;
+      console.warn("Netlify Blobs not available:", blobErr.message);
     }
 
-    // 2. Always save in memory cache as well
+    // 2. Also save in memory cache
     global.__artCache.set(code, artData);
-
-    console.log(`[Art Upload] Saved art with code: ${code} (${width}x${height} blocks)`);
 
     return {
       statusCode: 200,
@@ -64,6 +78,8 @@ exports.handler = async (event, context) => {
         code,
         width: parseInt(width),
         height: parseInt(height),
+        savedToBlobs,
+        blobError: blobErrorMsg,
         message: "Art uploaded successfully"
       }),
     };

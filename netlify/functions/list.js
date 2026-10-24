@@ -1,6 +1,17 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 
 global.__artCache = global.__artCache || new Map();
+
+function getSafeStore(event) {
+  try {
+    if (event && event.blobs) {
+      connectLambda(event);
+    }
+  } catch (e) {
+    console.warn("connectLambda error:", e.message);
+  }
+  return getStore("nirhalla-art-cache");
+}
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -22,7 +33,7 @@ exports.handler = async (event, context) => {
 
     // 1. Try reading from Netlify Blobs
     try {
-      const store = getStore("nirhalla-art-cache");
+      const store = getSafeStore(event);
       const { blobs } = await store.list();
       
       for (const b of blobs) {
@@ -42,7 +53,7 @@ exports.handler = async (event, context) => {
         }
       }
     } catch (blobErr) {
-      console.warn("Netlify Blobs list failed, checking memory cache:", blobErr.message);
+      console.warn("Netlify Blobs list failed:", blobErr.message);
     }
 
     // 2. Fallback to in-memory cache

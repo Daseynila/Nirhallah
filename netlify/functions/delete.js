@@ -1,6 +1,17 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 
 global.__artCache = global.__artCache || new Map();
+
+function getSafeStore(event) {
+  try {
+    if (event && event.blobs) {
+      connectLambda(event);
+    }
+  } catch (e) {
+    console.warn("connectLambda error:", e.message);
+  }
+  return getStore("nirhalla-art-cache");
+}
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -30,7 +41,7 @@ exports.handler = async (event, context) => {
 
     // Delete from Netlify Blobs
     try {
-      const store = getStore("nirhalla-art-cache");
+      const store = getSafeStore(event);
       await store.delete(code);
     } catch (blobErr) {
       console.warn("Netlify Blobs delete error:", blobErr.message);

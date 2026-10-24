@@ -1,6 +1,17 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 
 global.__artCache = global.__artCache || new Map();
+
+function getSafeStore(event) {
+  try {
+    if (event && event.blobs) {
+      connectLambda(event);
+    }
+  } catch (e) {
+    console.warn("connectLambda error:", e.message);
+  }
+  return getStore("nirhalla-art-cache");
+}
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -30,10 +41,10 @@ exports.handler = async (event, context) => {
 
   // 1. Try fetching from Netlify Blobs
   try {
-    const store = getStore("nirhalla-art-cache");
+    const store = getSafeStore(event);
     artData = await store.get(code, { type: "json" });
   } catch (blobErr) {
-    console.warn("Netlify Blobs lookup failed, trying memory cache:", blobErr.message);
+    console.warn("Netlify Blobs lookup failed:", blobErr.message);
   }
 
   // 2. Fallback to memory cache
@@ -51,7 +62,7 @@ exports.handler = async (event, context) => {
 
   const format = event.queryStringParameters?.format;
 
-  // If format is raw PNG (direct binary stream)
+  // If format is raw PNG (direct binary stream for Minecraft plugin)
   if (format === "png" || format === "raw") {
     const base64Data = artData.image.replace(/^data:image\/\w+;base64,/, "");
     return {
