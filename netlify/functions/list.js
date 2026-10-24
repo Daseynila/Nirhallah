@@ -28,13 +28,15 @@ exports.handler = async (event, context) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: "Method Not Allowed" }) };
   }
 
+  let blobError = null;
   try {
     const items = [];
 
     // 1. Try reading from Netlify Blobs
     try {
       const store = getSafeStore(event);
-      const { blobs } = await store.list();
+      const res = await store.list();
+      const blobs = res.blobs || [];
       
       for (const b of blobs) {
         try {
@@ -52,8 +54,9 @@ exports.handler = async (event, context) => {
           console.warn("Error reading blob " + b.key, itemErr.message);
         }
       }
-    } catch (blobErr) {
-      console.warn("Netlify Blobs list failed:", blobErr.message);
+    } catch (err) {
+      blobError = err.message;
+      console.warn("Netlify Blobs list failed:", err.message);
     }
 
     // 2. Fallback to in-memory cache
@@ -78,6 +81,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         count: items.length,
+        blobError,
         items
       }),
     };
