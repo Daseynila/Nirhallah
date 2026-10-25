@@ -1005,92 +1005,469 @@ body {
   margin-top: 1rem;
 }
 
-/* Moderator Token Panel */
-.mod-admin-panel {
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  animation: fadeIn 0.3s ease;
-}
-
-.mod-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.mod-panel-title {
+/* ============================================================
+   STAFF HEADER & AUTH BUTTONS
+   ============================================================ */
+.staff-header-area {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  color: #34d399;
-  font-size: 1rem;
-}
-
-.mod-badge {
-  background: rgba(16, 185, 129, 0.25);
-  color: #a7f3d0;
-  font-size: 0.75rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 12px;
-}
-
-.mod-tokens-container {
-  display: flex;
-  flex-direction: column;
   gap: 0.5rem;
 }
 
-.mod-tokens-label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.mod-tokens-list {
+.staff-logged-box {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  min-height: 36px;
   align-items: center;
+  gap: 0.5rem;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 20px;
+  padding: 0.2rem 0.6rem 0.2rem 0.8rem;
 }
 
-.token-pill {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 0.35rem 0.75rem;
+.staff-user-pill {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.btn-danger-soft {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
   border-radius: 6px;
-  font-family: var(--font-heading);
-  font-size: 0.85rem;
-  color: var(--accent-gold);
-  letter-spacing: 0.08em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.token-pill:hover {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: var(--accent-gold);
-  transform: translateY(-1px);
+.btn-danger-soft:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fff;
 }
 
-.token-pill-del {
-  color: #f87171;
+/* ============================================================
+   SIZE SELECTORS (STANDARD & GRAND)
+   ============================================================ */
+.size-group-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.size-btn-grand {
+  border-color: rgba(168, 85, 247, 0.3);
+  background: rgba(168, 85, 247, 0.05);
+}
+
+.size-btn-grand:hover {
+  border-color: rgba(168, 85, 247, 0.6);
+  background: rgba(168, 85, 247, 0.15);
+}
+
+.size-btn-grand.active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(236, 72, 153, 0.25));
+  border-color: #c084fc;
+  box-shadow: 0 0 15px rgba(192, 132, 252, 0.3);
+}
+
+.tier-warning-notice {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   font-size: 0.8rem;
-  margin-left: 0.25rem;
-  cursor: pointer;
-  opacity: 0.7;
+  color: #93c5fd;
 }
 
-.token-pill-del:hover {
-  opacity: 1;
+.tier-warning-notice.grand-alert {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.4);
+  color: #e9d5ff;
+}
+
+/* ============================================================
+   FORM FIELDS & INPUTS
+   ============================================================ */
+.form-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.text-field {
+  background: rgba(15, 17, 23, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.text-field:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.select-field {
+  cursor: pointer;
+}
+
+.select-field option {
+  background: #1a1f2c;
+  color: #fff;
+}
+
+/* ============================================================
+   CATEGORY FILTER BAR (GALLERY)
+   ============================================================ */
+.category-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cat-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cat-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.cat-pill.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--accent-gold);
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* ============================================================
+   ART CARD ENHANCEMENTS & AUDIT BADGES
+   ============================================================ */
+.art-card-category-tag {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.art-card-tier-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.art-card-tier-badge.grand {
+  background: rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #d8b4fe;
+}
+
+.art-card-tier-badge.standard {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.art-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.art-audit-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.art-audit-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.art-audit-label {
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+.art-audit-val {
+  color: #fef08a;
+  font-family: monospace;
+}
+
+/* ============================================================
+   STAFF AUTH & DASHBOARD MODALS
+   ============================================================ */
+.modal-auth-content {
+  max-width: 420px;
+  width: 90%;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.modal-dashboard-content {
+  max-width: 960px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.role-badge {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+}
+
+.dash-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.dash-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.dash-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.dash-tab.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.dash-pane {
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.dash-pane.active {
+  display: flex;
+}
+
+.token-generator-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.token-generator-card h4 {
+  font-size: 0.95rem;
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.token-create-form, .mod-create-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.section-sub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.section-sub-head h4 {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+/* ============================================================
+   DATA TABLES (TOKENS, MODERATORS, AUDIT LOG)
+   ============================================================ */
+.tokens-table-wrap {
+  background: rgba(15, 17, 23, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.audit-scroll-wrap {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.data-table th {
+  background: rgba(26, 31, 44, 0.9);
+  padding: 0.65rem 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.token-code-text {
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.token-code-text:hover {
+  text-decoration: underline;
+}
+
+/* IP Badges */
+.ip-badge-safe {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.ip-badge-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  animation: pulseWarn 2s infinite;
+}
+
+@keyframes pulseWarn {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.status-active {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.status-blocked {
+  color: #f87171;
+  font-weight: 600;
 }

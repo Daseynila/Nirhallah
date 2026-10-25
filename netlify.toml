@@ -30,6 +30,11 @@
   to = "/.netlify/functions/tokens"
   status = 200
 
+[[redirects]]
+  from = "/api/auth"
+  to = "/.netlify/functions/auth"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

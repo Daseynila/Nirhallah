@@ -31,14 +31,22 @@ MINECRAFT_PALETTE.forEach(([r, g, b]) => {
 let currentImage = null;
 let currentWidthBlocks = 1;
 let currentHeightBlocks = 1;
+let currentTier = "standard";
+let activeCategoryFilter = "all";
+let cachedGalleryItems = [];
 
-// Elements
+// Elements - Editor
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
-const sizeSelector = document.getElementById('sizeSelector');
+const tierNotice = document.getElementById('tierNotice');
+const artTitleInput = document.getElementById('artTitleInput');
+const artCategorySelect = document.getElementById('artCategorySelect');
 const ditherToggle = document.getElementById('ditherToggle');
 const gridToggle = document.getElementById('gridToggle');
+const tokenInput = document.getElementById('tokenInput');
 const generateBtn = document.getElementById('generateBtn');
+
+// Elements - Preview
 const canvasWrapper = document.getElementById('canvasWrapper');
 const emptyState = document.getElementById('emptyState');
 const wallScene = document.getElementById('wallScene');
@@ -47,19 +55,79 @@ const gridOverlay = document.getElementById('gridOverlay');
 const infoBar = document.getElementById('infoBar');
 const infoBlocks = document.getElementById('infoBlocks');
 const infoMaps = document.getElementById('infoMaps');
+const infoTier = document.getElementById('infoTier');
 const infoResolution = document.getElementById('infoResolution');
+const viewWallBtn = document.getElementById('viewWallBtn');
+const viewPureBtn = document.getElementById('viewPureBtn');
+
+// Elements - Result Modal
 const resultModal = document.getElementById('resultModal');
 const resultCode = document.getElementById('resultCode');
 const commandInput = document.getElementById('commandInput');
 const copyCmdBtn = document.getElementById('copyCmdBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
-const viewWallBtn = document.getElementById('viewWallBtn');
-const viewPureBtn = document.getElementById('viewPureBtn');
 const duplicateNotice = document.getElementById('duplicateNotice');
 const modalBadge = document.getElementById('modalBadge');
-const tokenInput = document.getElementById('tokenInput');
+const modalCanvasReqText = document.getElementById('modalCanvasReqText');
 
-// Initialize Drag & Drop
+// Elements - Navigation & Gallery
+const tabEditorBtn = document.getElementById('tabEditorBtn');
+const tabGalleryBtn = document.getElementById('tabGalleryBtn');
+const editorView = document.getElementById('editorView');
+const galleryView = document.getElementById('galleryView');
+const galleryGrid = document.getElementById('galleryGrid');
+const galleryEmpty = document.getElementById('galleryEmpty');
+const galleryLoading = document.getElementById('galleryLoading');
+const gallerySearchInput = document.getElementById('gallerySearchInput');
+const refreshGalleryBtn = document.getElementById('refreshGalleryBtn');
+const galleryCountBadge = document.getElementById('galleryCountBadge');
+const categoryFilterBar = document.getElementById('categoryFilterBar');
+
+// Elements - Staff Authentication & Dashboard
+const staffLoginBtn = document.getElementById('staffLoginBtn');
+const staffLoggedBox = document.getElementById('staffLoggedBox');
+const staffUserPill = document.getElementById('staffUserPill');
+const openStaffPanelBtn = document.getElementById('openStaffPanelBtn');
+const staffLogoutBtn = document.getElementById('staffLogoutBtn');
+
+const staffLoginModal = document.getElementById('staffLoginModal');
+const closeStaffLoginModal = document.getElementById('closeStaffLoginModal');
+const staffLoginForm = document.getElementById('staffLoginForm');
+const loginUsername = document.getElementById('loginUsername');
+const loginPassword = document.getElementById('loginPassword');
+const doLoginBtn = document.getElementById('doLoginBtn');
+
+const staffPanelModal = document.getElementById('staffPanelModal');
+const closeStaffPanelModal = document.getElementById('closeStaffPanelModal');
+const dashRoleBadge = document.getElementById('dashRoleBadge');
+const tabDashTokens = document.getElementById('tabDashTokens');
+const tabDashMods = document.getElementById('tabDashMods');
+const tabDashAudit = document.getElementById('tabDashAudit');
+const paneDashTokens = document.getElementById('paneDashTokens');
+const paneDashMods = document.getElementById('paneDashMods');
+const paneDashAudit = document.getElementById('paneDashAudit');
+
+// Elements - Tokens Form & Table
+const newTokenTier = document.getElementById('newTokenTier');
+const newTokenPlayer = document.getElementById('newTokenPlayer');
+const btnCreateTokenAction = document.getElementById('btnCreateTokenAction');
+const btnRefreshTokens = document.getElementById('btnRefreshTokens');
+const tokensTableBody = document.getElementById('tokensTableBody');
+
+// Elements - Mods Form & Table
+const newModUsername = document.getElementById('newModUsername');
+const newModPassword = document.getElementById('newModPassword');
+const btnCreateModAction = document.getElementById('btnCreateModAction');
+const btnRefreshMods = document.getElementById('btnRefreshMods');
+const modsTableBody = document.getElementById('modsTableBody');
+
+// Elements - Audit Log Table
+const btnRefreshAudit = document.getElementById('btnRefreshAudit');
+const auditTableBody = document.getElementById('auditTableBody');
+
+// ==========================================
+// 1. DRAG & DROP / FILE INPUT
+// ==========================================
 ['dragenter', 'dragover'].forEach(eventName => {
   dropzone.addEventListener(eventName, e => {
     e.preventDefault();
@@ -84,7 +152,6 @@ fileInput.addEventListener('change', e => {
   if (e.target.files.length > 0) handleFile(e.target.files[0]);
 });
 
-// Clipboard Paste (Ctrl+V)
 window.addEventListener('paste', e => {
   const items = (e.clipboardData || e.originalEvent.clipboardData).items;
   for (let index in items) {
@@ -98,125 +165,120 @@ window.addEventListener('paste', e => {
 
 function handleFile(file) {
   if (!file.type.startsWith('image/')) {
-    alert('Пожалуйста, выберите изображение (PNG, JPG, WEBP).');
+    alert('Пожалуйста, выберите файл изображения (PNG, JPG, WEBP).');
     return;
   }
+
   const reader = new FileReader();
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
       currentImage = img;
-      renderPreview();
-      generateBtn.disabled = false;
       emptyState.style.display = 'none';
-      wallScene.style.display = 'flex';
+      wallScene.style.display = 'block';
       infoBar.style.display = 'flex';
+      generateBtn.disabled = false;
+      renderCanvas();
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-// Size Buttons
-sizeSelector.addEventListener('click', e => {
-  const btn = e.target.closest('.size-btn');
-  if (!btn) return;
-  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentWidthBlocks = parseInt(btn.dataset.w);
-  currentHeightBlocks = parseInt(btn.dataset.h);
-  if (currentImage) renderPreview();
-});
+// ==========================================
+// 2. SIZE SELECTOR LOGIC (STANDARD & GRAND)
+// ==========================================
+function setupSizeSelectors() {
+  const allSizeBtns = document.querySelectorAll('.size-btn');
+  allSizeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      allSizeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
 
-// Toggles
+      currentWidthBlocks = parseInt(btn.dataset.w);
+      currentHeightBlocks = parseInt(btn.dataset.h);
+      currentTier = btn.dataset.tier || "standard";
+
+      updateSizeInfo();
+      if (currentImage) renderCanvas();
+    });
+  });
+}
+
+function updateSizeInfo() {
+  const isGrand = (currentTier === "grand" || currentWidthBlocks > 3 || currentHeightBlocks > 2 || (currentWidthBlocks * currentHeightBlocks > 6));
+  
+  infoBlocks.textContent = `${currentWidthBlocks} × ${currentHeightBlocks} блоков`;
+  infoMaps.textContent = `${currentWidthBlocks * currentHeightBlocks} карт`;
+  infoTier.textContent = isGrand ? "👑 Великий" : "🖼️ Стандарт";
+  infoTier.style.color = isGrand ? "#d8b4fe" : "#93c5fd";
+  infoResolution.textContent = `${currentWidthBlocks * 128} × ${currentHeightBlocks * 128} px`;
+
+  if (tierNotice) {
+    if (isGrand) {
+      tierNotice.className = "tier-warning-notice grand-alert";
+      tierNotice.innerHTML = "👑 Для этого размера требуется токен <strong>«Великий холст Нирхаллы»</strong> (монументальный).";
+    } else {
+      tierNotice.className = "tier-warning-notice";
+      tierNotice.innerHTML = "ℹ️ Для этого размера требуется токен <strong>«Имперский чистый холст»</strong>.";
+    }
+  }
+}
+setupSizeSelectors();
+
+// ==========================================
+// 3. CANVAS RENDERING & DITHERING
+// ==========================================
 ditherToggle.addEventListener('change', () => {
-  if (currentImage) renderPreview();
+  if (currentImage) renderCanvas();
 });
 
 gridToggle.addEventListener('change', () => {
-  gridOverlay.style.display = gridToggle.checked ? 'block' : 'none';
+  if (currentImage) renderCanvas();
 });
 
-// View Toggles
-viewWallBtn.addEventListener('click', () => {
-  viewWallBtn.classList.add('active');
-  viewPureBtn.classList.remove('active');
-  wallScene.style.backgroundImage = "linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), radial-gradient(#303642 1px, transparent 1px)";
-});
-
-viewPureBtn.addEventListener('click', () => {
-  viewPureBtn.classList.add('active');
-  viewWallBtn.classList.remove('active');
-  wallScene.style.backgroundImage = "none";
-});
-
-// Render Preview on Canvas with Floyd-Steinberg Dithering
-function renderPreview() {
+function renderCanvas() {
   if (!currentImage) return;
 
-  const targetWidth = currentWidthBlocks * 128;
-  const targetHeight = currentHeightBlocks * 128;
+  const targetW = currentWidthBlocks * 128;
+  const targetH = currentHeightBlocks * 128;
 
-  mainCanvas.width = targetWidth;
-  mainCanvas.height = targetHeight;
+  mainCanvas.width = targetW;
+  mainCanvas.height = targetH;
+
   const ctx = mainCanvas.getContext('2d');
+  ctx.drawImage(currentImage, 0, 0, targetW, targetH);
 
-  // Scale and crop image to fill target aspect ratio
-  const imgRatio = currentImage.width / currentImage.height;
-  const targetRatio = targetWidth / targetHeight;
-  let sx, sy, sWidth, sHeight;
-
-  if (imgRatio > targetRatio) {
-    sHeight = currentImage.height;
-    sWidth = currentImage.height * targetRatio;
-    sx = (currentImage.width - sWidth) / 2;
-    sy = 0;
-  } else {
-    sWidth = currentImage.width;
-    sHeight = currentImage.width / targetRatio;
-    sx = 0;
-    sy = (currentImage.height - sHeight) / 2;
-  }
-
-  ctx.drawImage(currentImage, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
-
-  // Apply Dithering if enabled
   if (ditherToggle.checked) {
-    const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-    applyFloydSteinberg(imgData.data, targetWidth, targetHeight);
-    ctx.putImageData(imgData, 0, 0);
+    applyFloydSteinbergDithering(ctx, targetW, targetH);
   }
 
-  // Draw Grid Overlay
-  renderGridOverlay(targetWidth, targetHeight);
-
-  // Update Info Bar
-  infoBlocks.textContent = `${currentWidthBlocks} × ${currentHeightBlocks} блоков`;
-  infoMaps.textContent = `${currentWidthBlocks * currentHeightBlocks} карт`;
-  infoResolution.textContent = `${targetWidth} × ${targetHeight} px`;
+  renderGridOverlay();
 }
 
-// Find nearest color in Minecraft palette
-function findNearestPaletteColor(r, g, b) {
-  let bestDist = Infinity;
-  let bestColor = FULL_PALETTE[0];
+function findClosestColor(r, g, b) {
+  let minDistance = Infinity;
+  let closest = FULL_PALETTE[0];
+
   for (let i = 0; i < FULL_PALETTE.length; i++) {
     const pal = FULL_PALETTE[i];
-    // Perceptually weighted Euclidean color distance
     const dr = r - pal[0];
     const dg = g - pal[1];
     const db = b - pal[2];
-    const dist = dr * dr * 0.299 + dg * dg * 0.587 + db * db * 0.114;
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestColor = pal;
+    const dist = dr * dr * 2 + dg * dg * 4 + db * db * 3;
+    if (dist < minDistance) {
+      minDistance = dist;
+      closest = pal;
+      if (dist === 0) break;
     }
   }
-  return bestColor;
+  return closest;
 }
 
-// Floyd-Steinberg Error Diffusion Algorithm
-function applyFloydSteinberg(data, width, height) {
+function applyFloydSteinbergDithering(ctx, width, height) {
+  const imgData = ctx.getImageData(0, 0, width, height);
+  const data = imgData.data;
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
@@ -224,25 +286,26 @@ function applyFloydSteinberg(data, width, height) {
       const oldG = data[idx + 1];
       const oldB = data[idx + 2];
 
-      const nearest = findNearestPaletteColor(oldR, oldG, oldB);
-      data[idx] = nearest[0];
-      data[idx + 1] = nearest[1];
-      data[idx + 2] = nearest[2];
+      const [newR, newG, newB] = findClosestColor(oldR, oldG, oldB);
 
-      const errR = oldR - nearest[0];
-      const errG = oldG - nearest[1];
-      const errB = oldB - nearest[2];
+      data[idx] = newR;
+      data[idx + 1] = newG;
+      data[idx + 2] = newB;
 
-      function distributeError(ox, oy, factor) {
-        const nx = x + ox;
-        const ny = y + oy;
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+      const errR = oldR - newR;
+      const errG = oldG - newG;
+      const errB = oldB - newB;
+
+      const distributeError = (dx, dy, factor) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < width && ny < height) {
           const nIdx = (ny * width + nx) * 4;
           data[nIdx] = Math.min(255, Math.max(0, data[nIdx] + errR * factor));
           data[nIdx + 1] = Math.min(255, Math.max(0, data[nIdx + 1] + errG * factor));
           data[nIdx + 2] = Math.min(255, Math.max(0, data[nIdx + 2] + errB * factor));
         }
-      }
+      };
 
       distributeError(1, 0, 7 / 16);
       distributeError(-1, 1, 3 / 16);
@@ -250,10 +313,10 @@ function applyFloydSteinberg(data, width, height) {
       distributeError(1, 1, 1 / 16);
     }
   }
+  ctx.putImageData(imgData, 0, 0);
 }
 
-// Draw block grid overlay
-function renderGridOverlay(width, height) {
+function renderGridOverlay() {
   gridOverlay.innerHTML = '';
   if (!gridToggle.checked) return;
 
@@ -275,7 +338,21 @@ function renderGridOverlay(width, height) {
   }
 }
 
-// Generate Art Code Action (Real Cloud Upload with Anti-Spam Duplicate Detection)
+viewWallBtn.addEventListener('click', () => {
+  viewWallBtn.classList.add('active');
+  viewPureBtn.classList.remove('active');
+  wallScene.style.background = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'64\' height=\'64\' fill=\'%23141720\'><rect width=\'64\' height=\'64\' fill=\'%231a1e29\'/><rect width=\'30\' height=\'30\' fill=\'%231f2430\'/><rect x=\'32\' y=\'32\' width=\'30\' height=\'30\' fill=\'%231f2430\'/></svg>") repeat';
+});
+
+viewPureBtn.addEventListener('click', () => {
+  viewPureBtn.classList.add('active');
+  viewWallBtn.classList.remove('active');
+  wallScene.style.background = 'transparent';
+});
+
+// ==========================================
+// 4. UPLOAD / PUBLISH LOGIC
+// ==========================================
 generateBtn.addEventListener('click', async () => {
   if (generateBtn.disabled) return;
 
@@ -284,25 +361,32 @@ generateBtn.addEventListener('click', async () => {
   generateBtn.textContent = '⏳ Сохранение в облако nirhalla.online...';
 
   const dataUrl = mainCanvas.toDataURL('image/png');
+  const enteredToken = tokenInput ? tokenInput.value.trim() : '';
+  const title = (artTitleInput ? artTitleInput.value.trim() : '');
+  const category = (artCategorySelect ? artCategorySelect.value : 'art');
+
+  const session = getStoredSession();
+  const sessionToken = session ? session.token : '';
+
   let code = null;
   let isDuplicate = false;
-
-  const enteredToken = tokenInput ? tokenInput.value.trim() : '';
-  const modPass = sessionStorage.getItem('nirhalla_mod_pass') || '';
+  let isGrand = (currentWidthBlocks > 3 || currentHeightBlocks > 2 || (currentWidthBlocks * currentHeightBlocks > 6));
 
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Mod-Password': modPass
+        'X-Session-Token': sessionToken
       },
       body: JSON.stringify({
         image: dataUrl,
         width: currentWidthBlocks,
         height: currentHeightBlocks,
         token: enteredToken,
-        modPassword: modPass
+        title,
+        category,
+        sessionToken
       })
     });
 
@@ -317,6 +401,7 @@ generateBtn.addEventListener('click', async () => {
 
     code = data.code;
     isDuplicate = Boolean(data.isDuplicate);
+    if (data.tier === 'grand') isGrand = true;
   } catch (err) {
     console.warn("Network request failed:", err);
     alert('Ошибка соединения с сервером при загрузке картины.');
@@ -325,23 +410,9 @@ generateBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Fallback for offline testing or direct file preview
-  if (!code) {
-    code = Math.floor(1000 + Math.random() * 9000);
-    try {
-      localStorage.setItem('art_' + code, JSON.stringify({
-        code,
-        image: dataUrl,
-        width: currentWidthBlocks,
-        height: currentHeightBlocks
-      }));
-    } catch(e) {}
-  }
-
   resultCode.textContent = code;
   commandInput.value = `/art ${code}`;
 
-  // Handle duplicate indicator
   if (duplicateNotice) {
     duplicateNotice.style.display = isDuplicate ? 'block' : 'none';
   }
@@ -350,11 +421,14 @@ generateBtn.addEventListener('click', async () => {
     modalBadge.style.background = isDuplicate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.2)';
     modalBadge.style.color = isDuplicate ? '#93c5fd' : 'var(--accent-gold)';
   }
+  if (modalCanvasReqText) {
+    modalCanvasReqText.textContent = isGrand ? '«Великий холст Нирхаллы»' : '«Имперский чистый холст»';
+  }
 
   resultModal.style.display = 'flex';
 
-  // Anti-spam Cooldown (5 seconds countdown on generate button)
-  let cooldownSec = 5;
+  // Cooldown
+  let cooldownSec = 4;
   generateBtn.textContent = `⏳ Подождите (${cooldownSec}с)...`;
   const cooldownInterval = setInterval(() => {
     cooldownSec--;
@@ -367,11 +441,9 @@ generateBtn.addEventListener('click', async () => {
     }
   }, 1000);
 
-  // Refresh gallery count
   loadGallery(false);
 });
 
-// Copy Command
 copyCmdBtn.addEventListener('click', () => {
   navigator.clipboard.writeText(commandInput.value).then(() => {
     copyCmdBtn.textContent = '✅ Скопировано!';
@@ -381,7 +453,6 @@ copyCmdBtn.addEventListener('click', () => {
   });
 });
 
-// Close Modal
 closeModalBtn.addEventListener('click', () => {
   resultModal.style.display = 'none';
 });
@@ -391,164 +462,517 @@ resultModal.addEventListener('click', e => {
 });
 
 // ==========================================
-// GALLERY & NAVIGATION TABS
+// 5. STAFF AUTHENTICATION (Niral + Mods)
 // ==========================================
-const tabEditorBtn = document.getElementById('tabEditorBtn');
-const tabGalleryBtn = document.getElementById('tabGalleryBtn');
-const editorView = document.getElementById('editorView');
-const galleryView = document.getElementById('galleryView');
-const galleryGrid = document.getElementById('galleryGrid');
-const galleryEmpty = document.getElementById('galleryEmpty');
-const galleryLoading = document.getElementById('galleryLoading');
-const gallerySearchInput = document.getElementById('gallerySearchInput');
-const refreshGalleryBtn = document.getElementById('refreshGalleryBtn');
-const galleryCountBadge = document.getElementById('galleryCountBadge');
-const modToggleBtn = document.getElementById('modToggleBtn');
-const modAdminPanel = document.getElementById('modAdminPanel');
-const createTokenBtn = document.getElementById('createTokenBtn');
-const modTokensList = document.getElementById('modTokensList');
-
-let cachedGalleryItems = [];
-
-// Moderator State Manager
-function updateModBtn() {
-  const isMod = Boolean(sessionStorage.getItem('nirhalla_mod_pass'));
-  if (modToggleBtn) {
-    if (isMod) {
-      modToggleBtn.classList.add('active');
-      modToggleBtn.textContent = '🛡️ Модератор (Выйти)';
-    } else {
-      modToggleBtn.classList.remove('active');
-      modToggleBtn.textContent = '🛡️ Вход модератора';
-    }
-  }
-  if (modAdminPanel) {
-    modAdminPanel.style.display = isMod ? 'flex' : 'none';
-    if (isMod) {
-      loadModTokens();
-    }
+function getStoredSession() {
+  try {
+    const raw = sessionStorage.getItem('nirhalla_session') || localStorage.getItem('nirhalla_session');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
   }
 }
 
-// Load Moderator Tokens from API
-async function loadModTokens() {
-  if (!modTokensList) return;
-  const modPass = sessionStorage.getItem('nirhalla_mod_pass');
-  if (!modPass) return;
+function setStoredSession(session) {
+  if (session) {
+    sessionStorage.setItem('nirhalla_session', JSON.stringify(session));
+    localStorage.setItem('nirhalla_session', JSON.stringify(session));
+  } else {
+    sessionStorage.removeItem('nirhalla_session');
+    localStorage.removeItem('nirhalla_session');
+  }
+  updateStaffUI();
+}
+
+function updateStaffUI() {
+  const session = getStoredSession();
+  if (session && session.token) {
+    if (staffLoginBtn) staffLoginBtn.style.display = 'none';
+    if (staffLoggedBox) staffLoggedBox.style.display = 'flex';
+    if (staffUserPill) {
+      staffUserPill.textContent = `${session.role === 'admin' ? '👑' : '🛡️'} ${session.username}`;
+    }
+    if (dashRoleBadge) {
+      dashRoleBadge.textContent = session.role === 'admin' ? 'Владелец Niral' : `Модератор ${session.username}`;
+    }
+    // Show Admin tabs only for Niral
+    const isAdmin = (session.role === 'admin');
+    if (tabDashMods) tabDashMods.style.display = isAdmin ? 'block' : 'none';
+    if (tabDashAudit) tabDashAudit.style.display = isAdmin ? 'block' : 'none';
+  } else {
+    if (staffLoginBtn) staffLoginBtn.style.display = 'inline-flex';
+    if (staffLoggedBox) staffLoggedBox.style.display = 'none';
+  }
+}
+
+async function verifySavedSession() {
+  const session = getStoredSession();
+  if (!session || !session.token) return;
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_session', sessionToken: session.token })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      setStoredSession(null);
+    }
+  } catch (e) {
+    console.warn("Session verification offline or failed:", e);
+  }
+}
+
+if (staffLoginBtn) {
+  staffLoginBtn.addEventListener('click', () => {
+    staffLoginModal.style.display = 'flex';
+    loginUsername.focus();
+  });
+}
+
+if (closeStaffLoginModal) {
+  closeStaffLoginModal.addEventListener('click', () => {
+    staffLoginModal.style.display = 'none';
+  });
+}
+
+staffLoginModal.addEventListener('click', e => {
+  if (e.target === staffLoginModal) staffLoginModal.style.display = 'none';
+});
+
+if (staffLoginForm) {
+  staffLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value;
+
+    if (!username || !password) {
+      alert('Введите логин и пароль!');
+      return;
+    }
+
+    doLoginBtn.disabled = true;
+    doLoginBtn.textContent = '⏳ Авторизация...';
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username, password })
+      });
+
+      const data = await res.json();
+      doLoginBtn.disabled = false;
+      doLoginBtn.textContent = 'Войти в систему';
+
+      if (!res.ok || !data.success) {
+        alert('❌ Ошибка входа: ' + (data.error || 'Неверный логин или пароль'));
+        return;
+      }
+
+      setStoredSession({
+        token: data.sessionToken,
+        username: data.username,
+        role: data.role
+      });
+
+      staffLoginModal.style.display = 'none';
+      alert(`✅ ${data.message}`);
+
+      // Refresh gallery to show audit badges for staff
+      loadGallery(false);
+      openStaffPanel();
+    } catch (err) {
+      doLoginBtn.disabled = false;
+      doLoginBtn.textContent = 'Войти в систему';
+      alert('Ошибка соединения с сервером при входе.');
+    }
+  });
+}
+
+if (staffLogoutBtn) {
+  staffLogoutBtn.addEventListener('click', async () => {
+    if (!confirm('Выйти из панели персонала?')) return;
+    const session = getStoredSession();
+    if (session && session.token) {
+      try {
+        await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'logout', sessionToken: session.token })
+        });
+      } catch (e) {}
+    }
+    setStoredSession(null);
+    staffPanelModal.style.display = 'none';
+    loadGallery(false);
+  });
+}
+
+// ==========================================
+// 6. STAFF DASHBOARD MODAL & TABS
+// ==========================================
+function openStaffPanel() {
+  staffPanelModal.style.display = 'flex';
+  switchDashTab('tokens');
+  loadTokensTable();
+}
+
+if (openStaffPanelBtn) {
+  openStaffPanelBtn.addEventListener('click', openStaffPanel);
+}
+
+if (closeStaffPanelModal) {
+  closeStaffPanelModal.addEventListener('click', () => {
+    staffPanelModal.style.display = 'none';
+  });
+}
+
+staffPanelModal.addEventListener('click', e => {
+  if (e.target === staffPanelModal) staffPanelModal.style.display = 'none';
+});
+
+function switchDashTab(tabName) {
+  tabDashTokens.classList.toggle('active', tabName === 'tokens');
+  tabDashMods.classList.toggle('active', tabName === 'mods');
+  tabDashAudit.classList.toggle('active', tabName === 'audit');
+
+  paneDashTokens.classList.toggle('active', tabName === 'tokens');
+  paneDashMods.classList.toggle('active', tabName === 'mods');
+  paneDashAudit.classList.toggle('active', tabName === 'audit');
+
+  if (tabName === 'tokens') loadTokensTable();
+  if (tabName === 'mods') loadModsTable();
+  if (tabName === 'audit') loadAuditTable();
+}
+
+tabDashTokens.addEventListener('click', () => switchDashTab('tokens'));
+tabDashMods.addEventListener('click', () => switchDashTab('mods'));
+tabDashAudit.addEventListener('click', () => switchDashTab('audit'));
+
+// 6.1 TOKENS MANAGEMENT
+async function loadTokensTable() {
+  const session = getStoredSession();
+  if (!session) return;
+
+  tokensTableBody.innerHTML = '<tr><td colspan="6" class="text-center">Загрузка токенов...</td></tr>';
 
   try {
     const res = await fetch('/api/tokens', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'list', password: modPass })
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Token': session.token
+      },
+      body: JSON.stringify({ action: 'list', sessionToken: session.token })
     });
 
-    if (res.status === 403) {
-      sessionStorage.removeItem('nirhalla_mod_pass');
-      updateModBtn();
+    const data = await res.json();
+    if (!res.ok) {
+      tokensTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${data.error || 'Ошибка загрузки'}</td></tr>`;
       return;
     }
-
-    const data = await res.json();
-    modTokensList.innerHTML = '';
 
     if (!data.tokens || data.tokens.length === 0) {
-      modTokensList.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">Нет активных токенов. Нажмите «Создать токен для игрока», чтобы выдать ключ.</span>';
+      tokensTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Нет активных токенов. Выпустите новый токен выше.</td></tr>';
       return;
     }
 
+    tokensTableBody.innerHTML = '';
     data.tokens.forEach(t => {
-      const pill = document.createElement('div');
-      pill.className = 'token-pill';
-      pill.innerHTML = `
-        <span>🎫 ${t.token}</span>
-        <span class="token-pill-del" title="Удалить токен">✕</span>
+      const tr = document.createElement('tr');
+      const isGrand = (t.tier === 'grand');
+      const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString('ru-RU', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      }) : 'Недавно';
+
+      tr.innerHTML = `
+        <td><span class="token-code-text" title="Нажмите, чтобы скопировать">🎫 ${t.token}</span></td>
+        <td><span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий (до 8х5)' : '🖼️ Стандарт (до 3х2)'}</span></td>
+        <td><strong>${escapeHtml(t.targetPlayer || 'Не указан')}</strong></td>
+        <td>${escapeHtml(t.issuedBy || 'Админ')}</td>
+        <td>${dateStr}</td>
+        <td><button class="btn btn-danger-soft btn-sm btn-del-token" data-tok="${t.token}">Удалить</button></td>
       `;
 
-      // Click token to copy
-      pill.addEventListener('click', (e) => {
-        if (e.target.classList.contains('token-pill-del')) return;
+      // Copy token on click
+      tr.querySelector('.token-code-text').addEventListener('click', () => {
         navigator.clipboard.writeText(t.token).then(() => {
-          alert(`✅ Токен ${t.token} скопирован в буфер обмена! Передайте его игроку.`);
+          alert(`✅ Токен ${t.token} скопирован в буфер обмена! Передайте его игроку ${t.targetPlayer || ''}.`);
         });
       });
 
       // Delete token
-      const delSpan = pill.querySelector('.token-pill-del');
-      delSpan.addEventListener('click', async (e) => {
-        e.stopPropagation();
+      tr.querySelector('.btn-del-token').addEventListener('click', async () => {
         if (!confirm(`Удалить неиспользованный токен ${t.token}?`)) return;
         await fetch('/api/tokens', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'delete', password: modPass, token: t.token })
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': session.token },
+          body: JSON.stringify({ action: 'delete', token: t.token, sessionToken: session.token })
         });
-        loadModTokens();
+        loadTokensTable();
       });
 
-      modTokensList.appendChild(pill);
+      tokensTableBody.appendChild(tr);
     });
   } catch (err) {
-    console.warn("Failed to load tokens:", err);
+    tokensTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Ошибка соединения с сервером</td></tr>';
   }
 }
 
-// Create new single-use upload token
-if (createTokenBtn) {
-  createTokenBtn.addEventListener('click', async () => {
-    const modPass = sessionStorage.getItem('nirhalla_mod_pass');
-    if (!modPass) return;
+if (btnCreateTokenAction) {
+  btnCreateTokenAction.addEventListener('click', async () => {
+    const session = getStoredSession();
+    if (!session) return;
+
+    const tier = newTokenTier.value;
+    const targetPlayer = newTokenPlayer.value.trim();
+
+    btnCreateTokenAction.disabled = true;
+    btnCreateTokenAction.textContent = '⏳ Выпуск...';
 
     try {
-      createTokenBtn.disabled = true;
-      createTokenBtn.textContent = '⏳ Создание...';
-
       const res = await fetch('/api/tokens', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', password: modPass })
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': session.token
+        },
+        body: JSON.stringify({ action: 'create', tier, targetPlayer, sessionToken: session.token })
       });
 
       const data = await res.json();
-      createTokenBtn.disabled = false;
-      createTokenBtn.textContent = '🎫 Создать токен для игрока';
+      btnCreateTokenAction.disabled = false;
+      btnCreateTokenAction.textContent = '✨ Выпустить токен';
 
       if (res.ok && data.token) {
         navigator.clipboard.writeText(data.token);
-        alert(`🎉 Токен создан и скопирован в буфер:\n\n${data.token}\n\nПередайте его игроку для публикации одного арта.`);
-        loadModTokens();
+        newTokenPlayer.value = '';
+        alert(`🎉 Токен ${data.token} успешно создан и скопирован в буфер!\n\nТип: ${tier === 'grand' ? 'Великий (до 8х5)' : 'Стандартный (до 3х2)'}\nИгрок: ${data.targetPlayer}\n\nПередайте его игроку для загрузки.`);
+        loadTokensTable();
       } else {
-        alert('Ошибка создания токена: ' + (data.error || 'Неизвестная ошибка'));
+        alert('Ошибка: ' + (data.error || 'Не удалось выпустить токен'));
       }
     } catch (e) {
-      createTokenBtn.disabled = false;
-      createTokenBtn.textContent = '🎫 Создать токен для игрока';
+      btnCreateTokenAction.disabled = false;
+      btnCreateTokenAction.textContent = '✨ Выпустить токен';
       alert('Ошибка соединения с сервером.');
     }
   });
 }
 
-if (modToggleBtn) {
-  modToggleBtn.addEventListener('click', () => {
-    const isMod = Boolean(sessionStorage.getItem('nirhalla_mod_pass'));
-    if (isMod) {
-      if (confirm('Выйти из режима модератора?')) {
-        sessionStorage.removeItem('nirhalla_mod_pass');
-        updateModBtn();
+if (btnRefreshTokens) {
+  btnRefreshTokens.addEventListener('click', loadTokensTable);
+}
+
+// 6.2 MODERATORS MANAGEMENT & IP MONITORING (Admin Only)
+async function loadModsTable() {
+  const session = getStoredSession();
+  if (!session || session.role !== 'admin') return;
+
+  modsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">Загрузка модераторов...</td></tr>';
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Token': session.token
+      },
+      body: JSON.stringify({ action: 'list_mods', sessionToken: session.token })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      modsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${data.error || 'Ошибка доступа'}</td></tr>`;
+      return;
+    }
+
+    if (!data.mods || data.mods.length === 0) {
+      modsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Модераторы еще не добавлены. Создайте аккаунт выше.</td></tr>';
+      return;
+    }
+
+    modsTableBody.innerHTML = '';
+    data.mods.forEach(m => {
+      const tr = document.createElement('tr');
+      const isBlocked = (m.status === 'blocked');
+      const ipCount = (m.knownIPs && m.knownIPs.length > 0) ? m.knownIPs.length : (m.ipChangeCount || 0);
+
+      // Safe vs Suspicious IP badge
+      let ipBadgeHtml = '';
+      if (ipCount <= 1) {
+        ipBadgeHtml = `<span class="ip-badge-safe">🟢 1 IP (Безопасно)</span>`;
+      } else {
+        ipBadgeHtml = `<span class="ip-badge-warn" title="Аккаунт использовался с разных IP! Проверьте передачу пароля третьим лицам">⚠️ ${ipCount} IP (Внимание!)</span>`;
       }
-    } else {
-      const pass = prompt('Введите пароль модератора:');
-      if (pass && pass.trim()) {
-        sessionStorage.setItem('nirhalla_mod_pass', pass.trim());
-        updateModBtn();
-        alert('✅ Режим модератора активирован!');
+
+      const ipListStr = (m.knownIPs && m.knownIPs.length > 0) ? m.knownIPs.join(', ') : (m.lastIP || 'Еще не входил');
+      const lastLoginStr = m.lastLogin ? new Date(m.lastLogin).toLocaleDateString('ru-RU', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      }) : 'Никогда';
+
+      tr.innerHTML = `
+        <td><strong>🛡️ ${escapeHtml(m.username)}</strong></td>
+        <td><span class="${isBlocked ? 'status-blocked' : 'status-active'}">${isBlocked ? '🛑 Заблокирован' : '✅ Активен'}</span></td>
+        <td>${ipBadgeHtml}</td>
+        <td><small style="font-family: monospace; color: var(--text-muted);">${escapeHtml(ipListStr)}</small></td>
+        <td>${lastLoginStr}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary btn-toggle-mod" data-user="${m.username}">
+            ${isBlocked ? 'Разморозить' : 'Заморозить'}
+          </button>
+          <button class="btn btn-sm btn-danger-soft btn-del-mod" data-user="${m.username}">
+            Удалить
+          </button>
+        </td>
+      `;
+
+      // Toggle Freeze
+      tr.querySelector('.btn-toggle-mod').addEventListener('click', async () => {
+        await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': session.token },
+          body: JSON.stringify({ action: 'toggle_mod', modUsername: m.username, sessionToken: session.token })
+        });
+        loadModsTable();
+      });
+
+      // Delete Mod
+      tr.querySelector('.btn-del-mod').addEventListener('click', async () => {
+        if (!confirm(`Удалить модератора ${m.username}? Он больше не сможет входить.`)) return;
+        await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Session-Token': session.token },
+          body: JSON.stringify({ action: 'delete_mod', modUsername: m.username, sessionToken: session.token })
+        });
+        loadModsTable();
+      });
+
+      modsTableBody.appendChild(tr);
+    });
+  } catch (err) {
+    modsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Ошибка соединения с сервером</td></tr>';
+  }
+}
+
+if (btnCreateModAction) {
+  btnCreateModAction.addEventListener('click', async () => {
+    const session = getStoredSession();
+    if (!session || session.role !== 'admin') return;
+
+    const modUsername = newModUsername.value.trim();
+    const modPassword = newModPassword.value.trim();
+
+    if (!modUsername || !modPassword) {
+      alert('Введите логин и пароль нового модератора!');
+      return;
+    }
+
+    btnCreateModAction.disabled = true;
+    btnCreateModAction.textContent = '⏳ Создание...';
+
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Token': session.token
+        },
+        body: JSON.stringify({ action: 'create_mod', modUsername, modPassword, sessionToken: session.token })
+      });
+
+      const data = await res.json();
+      btnCreateModAction.disabled = false;
+      btnCreateModAction.textContent = '➕ Добавить';
+
+      if (res.ok && data.success) {
+        newModUsername.value = '';
+        newModPassword.value = '';
+        alert(`✅ ${data.message}`);
+        loadModsTable();
+      } else {
+        alert('Ошибка: ' + (data.error || 'Не удалось создать модератора'));
       }
+    } catch (e) {
+      btnCreateModAction.disabled = false;
+      btnCreateModAction.textContent = '➕ Добавить';
+      alert('Ошибка соединения с сервером.');
     }
   });
 }
-updateModBtn();
 
-// Tab Switchers
+if (btnRefreshMods) {
+  btnRefreshMods.addEventListener('click', loadModsTable);
+}
+
+// 6.3 AUDIT LOG (Admin Only)
+async function loadAuditTable() {
+  const session = getStoredSession();
+  if (!session || session.role !== 'admin') return;
+
+  auditTableBody.innerHTML = '<tr><td colspan="5" class="text-center">Загрузка журнала...</td></tr>';
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Token': session.token
+      },
+      body: JSON.stringify({ action: 'get_audit_log', sessionToken: session.token })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      auditTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${data.error || 'Ошибка доступа'}</td></tr>`;
+      return;
+    }
+
+    if (!data.logs || data.logs.length === 0) {
+      auditTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Журнал безопасности пуст.</td></tr>';
+      return;
+    }
+
+    auditTableBody.innerHTML = '';
+    data.logs.forEach(l => {
+      const tr = document.createElement('tr');
+      const timeStr = l.timestamp ? new Date(l.timestamp).toLocaleDateString('ru-RU', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }) : '—';
+
+      let typeBadge = l.type;
+      if (l.type === 'ADMIN_LOGIN') typeBadge = '👑 Админ Вход';
+      else if (l.type === 'MOD_LOGIN') typeBadge = '🛡️ Модер Вход';
+      else if (l.type === 'MOD_NEW_IP') typeBadge = '⚠️ НОВЫЙ IP';
+      else if (l.type === 'FAILED_LOGIN') typeBadge = '❌ Ошибка Входа';
+      else if (l.type === 'ART_UPLOAD') typeBadge = '🖼️ Загрузка Арта';
+      else if (l.type === 'ART_DELETE') typeBadge = '🗑️ Удаление';
+      else if (l.type === 'CREATE_TOKEN') typeBadge = '🎫 Токен';
+
+      tr.innerHTML = `
+        <td style="white-space: nowrap;"><small>${timeStr}</small></td>
+        <td><strong>${typeBadge}</strong></td>
+        <td>${escapeHtml(l.username || '—')}</td>
+        <td><code style="color: #93c5fd;">${escapeHtml(l.ip || '—')}</code></td>
+        <td>${escapeHtml(l.text || '')}</td>
+      `;
+
+      auditTableBody.appendChild(tr);
+    });
+  } catch (err) {
+    auditTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Ошибка загрузки журнала</td></tr>';
+  }
+}
+
+if (btnRefreshAudit) {
+  btnRefreshAudit.addEventListener('click', loadAuditTable);
+}
+
+// ==========================================
+// 7. GALLERY & CATEGORIES
+// ==========================================
 tabEditorBtn.addEventListener('click', () => {
   tabEditorBtn.classList.add('active');
   tabGalleryBtn.classList.remove('active');
@@ -572,7 +996,20 @@ gallerySearchInput.addEventListener('input', () => {
   renderGalleryGrid();
 });
 
-// Load Gallery from Server / LocalStorage
+// Category pills listener
+if (categoryFilterBar) {
+  const catPills = categoryFilterBar.querySelectorAll('.cat-pill');
+  catPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      catPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeCategoryFilter = pill.dataset.cat || 'all';
+      renderGalleryGrid();
+    });
+  });
+}
+
+// Load Gallery from Server
 async function loadGallery(showSpinner = true) {
   if (showSpinner) {
     galleryLoading.style.display = 'flex';
@@ -580,10 +1017,18 @@ async function loadGallery(showSpinner = true) {
     galleryGrid.style.display = 'none';
   }
 
+  const session = getStoredSession();
+  const sessionToken = session ? session.token : '';
+
   let serverItems = [];
 
   try {
-    const res = await fetch('/api/list');
+    const res = await fetch('/api/list', {
+      headers: {
+        'X-Session-Token': sessionToken
+      }
+    });
+
     if (res.ok) {
       const data = await res.json();
       if (data.items && Array.isArray(data.items)) {
@@ -594,7 +1039,7 @@ async function loadGallery(showSpinner = true) {
     console.warn("Could not fetch remote gallery:", err);
   }
 
-  // Also include any items stored locally in localStorage
+  // Also include any items stored locally in localStorage (for offline/preview)
   const localMap = new Map();
   serverItems.forEach(item => localMap.set(String(item.code), item));
 
@@ -614,19 +1059,41 @@ async function loadGallery(showSpinner = true) {
   cachedGalleryItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   galleryCountBadge.textContent = cachedGalleryItems.length;
-
   galleryLoading.style.display = 'none';
   renderGalleryGrid();
 }
 
-// Render Gallery Grid with Filter
+function getCategoryName(cat) {
+  switch (cat) {
+    case 'nirhalla': return '🏛️ Нирхалла';
+    case 'landscape': return '🌄 Пейзажи';
+    case 'memes': return '😂 Мемы';
+    case 'interior': return '🪧 Интерьер';
+    case 'art': default: return '🎨 Арт';
+  }
+}
+
+// Render Gallery Grid with Search and Category Filter
 function renderGalleryGrid() {
   galleryGrid.innerHTML = '';
   const query = (gallerySearchInput.value || '').trim().toLowerCase();
+  const session = getStoredSession();
+  const isStaff = Boolean(session && session.token);
 
   const filtered = cachedGalleryItems.filter(item => {
+    // Category match
+    if (activeCategoryFilter !== 'all') {
+      const itemCat = item.category || 'art';
+      if (itemCat !== activeCategoryFilter) return false;
+    }
+
+    // Query match (code, title, author, targetPlayer)
     if (!query) return true;
-    return String(item.code).toLowerCase().includes(query);
+    const matchCode = String(item.code).toLowerCase().includes(query);
+    const matchTitle = (item.title || '').toLowerCase().includes(query);
+    const matchPlayer = (item.audit && item.audit.targetPlayer ? item.audit.targetPlayer.toLowerCase().includes(query) : false);
+
+    return matchCode || matchTitle || matchPlayer;
   });
 
   if (filtered.length === 0) {
@@ -642,6 +1109,9 @@ function renderGalleryGrid() {
     const card = document.createElement('div');
     card.className = 'art-card';
 
+    const isGrand = (item.tier === 'grand' || item.width > 3 || item.height > 2 || (item.width * item.height > 6));
+    const catName = getCategoryName(item.category);
+
     const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'short',
@@ -649,19 +1119,45 @@ function renderGalleryGrid() {
       minute: '2-digit'
     }) : 'Недавно';
 
+    // Staff Audit Box
+    let auditHtml = '';
+    if (isStaff && item.audit) {
+      auditHtml = `
+        <div class="art-audit-box">
+          <div class="art-audit-row">
+            <span class="art-audit-label">👤 Игрок:</span>
+            <span class="art-audit-val">${escapeHtml(item.audit.targetPlayer || 'Не указан')}</span>
+          </div>
+          <div class="art-audit-row">
+            <span class="art-audit-label">🌐 IP автора:</span>
+            <span class="art-audit-val">${escapeHtml(item.audit.uploaderIP || 'Скрыт')}</span>
+          </div>
+          <div class="art-audit-row">
+            <span class="art-audit-label">🎫 Токен:</span>
+            <span class="art-audit-val">${escapeHtml(item.audit.usedToken || '—')} (от ${escapeHtml(item.audit.tokenIssuedBy || 'Админ')})</span>
+          </div>
+        </div>
+      `;
+    }
+
     card.innerHTML = `
       <div class="art-card-thumb-wrap">
-        <img class="art-card-thumb" src="${item.image}" alt="Холст #${item.code}">
+        <img class="art-card-thumb" src="${item.image}" alt="Холст #${item.code}" loading="lazy">
       </div>
       <div class="art-card-body">
         <div class="art-card-header">
           <span class="art-card-code">#${item.code}</span>
-          <span class="art-card-badge">${item.width} × ${item.height} блока</span>
+          <div style="display: flex; gap: 0.35rem; align-items: center;">
+            <span class="art-card-category-tag">${catName}</span>
+            <span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий' : '🖼️ Стандарт'}</span>
+          </div>
         </div>
+        <div class="art-card-title">${escapeHtml(item.title || `Холст #${item.code}`)}</div>
         <div class="art-card-meta">
-          <span>${item.width * item.height} карт в наборе</span>
+          <span>${item.width} × ${item.height} блока (${item.width * item.height} карт)</span>
           <span>${dateStr}</span>
         </div>
+        ${auditHtml}
         <div class="art-card-actions">
           <button class="btn-copy" data-code="${item.code}">
             📋 /art ${item.code}
@@ -673,7 +1169,7 @@ function renderGalleryGrid() {
       </div>
     `;
 
-    // Copy Button Action
+    // Copy Button
     const copyBtn = card.querySelector('.btn-copy');
     copyBtn.addEventListener('click', () => {
       const cmd = `/art ${item.code}`;
@@ -685,34 +1181,31 @@ function renderGalleryGrid() {
       });
     });
 
-    // Delete Button Action (Protected by Moderator Password)
+    // Delete Button
     const delBtn = card.querySelector('.btn-delete');
     delBtn.addEventListener('click', async () => {
-      let modPass = sessionStorage.getItem('nirhalla_mod_pass');
-      if (!modPass) {
-        modPass = prompt('🔒 Для удаления картины введите пароль модератора:');
-        if (!modPass || !modPass.trim()) return;
-        modPass = modPass.trim();
-        sessionStorage.setItem('nirhalla_mod_pass', modPass);
-        updateModBtn();
+      const currentSession = getStoredSession();
+      if (!currentSession) {
+        staffLoginModal.style.display = 'flex';
+        alert('🔒 Для удаления картин требуется войти под аккаунтом персонала.');
+        return;
       }
 
-      if (!confirm(`Вы уверены, что хотите удалить холст #${item.code} из базы сервера?`)) return;
+      if (!confirm(`Вы уверены, что хотите удалить холст #${item.code} из базы данных сервера?`)) return;
 
       try {
         const res = await fetch(`/api/delete?code=${item.code}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Mod-Password': modPass
+            'X-Session-Token': currentSession.token
           },
-          body: JSON.stringify({ code: item.code, password: modPass })
+          body: JSON.stringify({ code: item.code, sessionToken: currentSession.token })
         });
 
         if (res.status === 403) {
-          alert('❌ Ошибка: Неверный пароль модератора! Доступ отклонен.');
-          sessionStorage.removeItem('nirhalla_mod_pass');
-          updateModBtn();
+          alert('❌ Ошибка: Сессия истекла или недостаточно прав!');
+          setStoredSession(null);
           return;
         }
 
@@ -735,6 +1228,17 @@ function renderGalleryGrid() {
   });
 }
 
-// Initial count fetch in background
-loadGallery(false);
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
+// Initial session check and gallery load
+updateStaffUI();
+verifySavedSession();
+loadGallery(false);

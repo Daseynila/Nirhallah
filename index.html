@@ -28,6 +28,15 @@
       <span class="badge badge-accent">⚡ Без модов</span>
       <span class="badge badge-gold">💎 HD Дизеринг</span>
       <span class="badge badge-cyan">📱 Java & Geyser</span>
+      <!-- Staff Status Indicator -->
+      <div class="staff-header-area" id="staffHeaderArea">
+        <button class="btn btn-mod" id="staffLoginBtn">🛡️ Вход персонала</button>
+        <div class="staff-logged-box" id="staffLoggedBox" style="display: none;">
+          <span class="staff-user-pill" id="staffUserPill">👤 Niral</span>
+          <button class="btn btn-secondary btn-sm" id="openStaffPanelBtn">⚙️ Панель</button>
+          <button class="btn btn-danger-soft btn-sm" id="staffLogoutBtn" title="Выйти">🚪</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -49,34 +58,80 @@
           </div>
 
           <h2 class="card-title mt-4">2. Размер картины на стене</h2>
-          <div class="size-selector" id="sizeSelector">
-            <button class="size-btn active" data-w="1" data-h="1">
+          <div class="size-group-title">Стандартные холсты (до 3×2 блоков)</div>
+          <div class="size-selector" id="sizeSelectorStandard">
+            <button class="size-btn active" data-w="1" data-h="1" data-tier="standard">
               <span class="size-val">1 × 1</span>
               <span class="size-desc">128×128 px</span>
             </button>
-            <button class="size-btn" data-w="2" data-h="1">
+            <button class="size-btn" data-w="2" data-h="1" data-tier="standard">
               <span class="size-val">2 × 1</span>
               <span class="size-desc">256×128 px</span>
             </button>
-            <button class="size-btn" data-w="2" data-h="2">
+            <button class="size-btn" data-w="1" data-h="2" data-tier="standard">
+              <span class="size-val">1 × 2</span>
+              <span class="size-desc">128×256 px</span>
+            </button>
+            <button class="size-btn" data-w="2" data-h="2" data-tier="standard">
               <span class="size-val">2 × 2</span>
               <span class="size-desc">256×256 px</span>
             </button>
-            <button class="size-btn" data-w="3" data-h="2">
+            <button class="size-btn" data-w="3" data-h="2" data-tier="standard">
               <span class="size-val">3 × 2</span>
               <span class="size-desc">384×256 px</span>
             </button>
-            <button class="size-btn" data-w="4" data-h="2">
+          </div>
+
+          <div class="size-group-title mt-3">👑 Великие монументальные холсты (до 8×5 блоков)</div>
+          <div class="size-selector size-selector-grand" id="sizeSelectorGrand">
+            <button class="size-btn size-btn-grand" data-w="3" data-h="3" data-tier="grand">
+              <span class="size-val">3 × 3</span>
+              <span class="size-desc">384×384 px</span>
+            </button>
+            <button class="size-btn size-btn-grand" data-w="4" data-h="2" data-tier="grand">
               <span class="size-val">4 × 2</span>
               <span class="size-desc">512×256 px</span>
             </button>
-            <button class="size-btn" data-w="4" data-h="3">
+            <button class="size-btn size-btn-grand" data-w="4" data-h="3" data-tier="grand">
               <span class="size-val">4 × 3</span>
               <span class="size-desc">512×384 px</span>
             </button>
+            <button class="size-btn size-btn-grand" data-w="5" data-h="3" data-tier="grand">
+              <span class="size-val">5 × 3</span>
+              <span class="size-desc">640×384 px</span>
+            </button>
+            <button class="size-btn size-btn-grand" data-w="6" data-h="4" data-tier="grand">
+              <span class="size-val">6 × 4</span>
+              <span class="size-desc">768×512 px</span>
+            </button>
+            <button class="size-btn size-btn-grand" data-w="8" data-h="5" data-tier="grand">
+              <span class="size-val">8 × 5</span>
+              <span class="size-desc">1024×640 px</span>
+            </button>
+          </div>
+          <div class="tier-warning-notice" id="tierNotice">
+            ℹ️ Для этого размера требуется токен <strong>«Имперский чистый холст»</strong>.
           </div>
 
-          <h2 class="card-title mt-4">3. Режим обработки</h2>
+          <h2 class="card-title mt-4">3. Категория и детали</h2>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label" for="artTitleInput">Название картины (опционально):</label>
+              <input type="text" id="artTitleInput" class="text-field" placeholder="Например: Закат в Нирхалле" maxlength="40">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="artCategorySelect">Тег раздела:</label>
+              <select id="artCategorySelect" class="text-field select-field">
+                <option value="art">🎨 Арт / Творчество</option>
+                <option value="nirhalla">🏛️ Нирхалла</option>
+                <option value="landscape">🌄 Пейзажи</option>
+                <option value="memes">😂 Мемы</option>
+                <option value="interior">🪧 Интерьер и Вывески</option>
+              </select>
+            </div>
+          </div>
+
+          <h2 class="card-title mt-4">4. Режим обработки</h2>
           <div class="options-box">
             <label class="toggle-control">
               <input type="checkbox" id="ditherToggle" checked>
@@ -92,10 +147,10 @@
             </label>
           </div>
 
-          <h2 class="card-title mt-4">4. Токен загрузки (Право автора)</h2>
+          <h2 class="card-title mt-4">5. Токен загрузки (Право автора)</h2>
           <div class="token-input-box">
             <input type="text" id="tokenInput" placeholder="Введите токен (напр. NIR-8492)..." maxlength="15" class="token-field">
-            <p class="field-hint">Токен загрузки выдается администрацией сервера Нирхалла или приобретается в донат-магазине.</p>
+            <p class="field-hint">Токен загрузки выдается администрацией сервера Нирхалла или приобретается у модераторов.</p>
           </div>
 
           <button class="btn btn-primary mt-3" id="generateBtn" disabled>
@@ -130,15 +185,19 @@
           <div class="info-bar" id="infoBar" style="display: none;">
             <div class="info-item">
               <span class="info-label">Размер в блоках:</span>
-              <span class="info-value" id="infoBlocks">3 × 2 блоков</span>
+              <span class="info-value" id="infoBlocks">1 × 1 блоков</span>
             </div>
             <div class="info-item">
               <span class="info-label">Игровых карт:</span>
-              <span class="info-value" id="infoMaps">6 карт</span>
+              <span class="info-value" id="infoMaps">1 карт</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Разрешение холста:</span>
-              <span class="info-value" id="infoResolution">384 × 256 px</span>
+              <span class="info-label">Тип холста:</span>
+              <span class="info-value" id="infoTier">Стандарт</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Разрешение:</span>
+              <span class="info-value" id="infoResolution">128 × 128 px</span>
             </div>
           </div>
         </section>
@@ -150,33 +209,25 @@
       <div class="gallery-header-bar">
         <div>
           <h2 class="section-title">Каталог картин Нирхаллы</h2>
-          <p class="section-subtitle">Здесь хранятся все работы, загруженные на сайт. Любой игрок может взять код и повесить картину себе в дом!</p>
+          <p class="section-subtitle">Здесь хранятся все работы игроков. Любой житель сервера может взять код и повесить картину себе в дом!</p>
         </div>
         <div class="gallery-actions">
           <div class="search-box">
             <span class="search-icon">🔍</span>
-            <input type="text" id="gallerySearchInput" placeholder="Поиск по коду (напр. 4912)...">
+            <input type="text" id="gallerySearchInput" placeholder="Поиск по коду, названию, автору...">
           </div>
           <button class="btn btn-secondary" id="refreshGalleryBtn">🔄 Обновить</button>
-          <button class="btn btn-mod" id="modToggleBtn">🛡️ Вход модератора</button>
         </div>
       </div>
 
-      <!-- Панель управления токенами для модератора -->
-      <div class="mod-admin-panel" id="modAdminPanel" style="display: none;">
-        <div class="mod-panel-header">
-          <div class="mod-panel-title">
-            <span>🛡️ Панель модератора Нирхаллы</span>
-            <span class="mod-badge">Активна</span>
-          </div>
-          <button class="btn btn-primary btn-sm" id="createTokenBtn">🎫 Создать токен для игрока</button>
-        </div>
-        <div class="mod-tokens-container">
-          <span class="mod-tokens-label">Активные неиспользованные токены:</span>
-          <div class="mod-tokens-list" id="modTokensList">
-            <span class="text-muted">Загрузка токенов...</span>
-          </div>
-        </div>
+      <!-- Фильтр по категориям -->
+      <div class="category-filter-bar" id="categoryFilterBar">
+        <button class="cat-pill active" data-cat="all">Все работы</button>
+        <button class="cat-pill" data-cat="nirhalla">🏛️ Нирхалла</button>
+        <button class="cat-pill" data-cat="landscape">🌄 Пейзажи</button>
+        <button class="cat-pill" data-cat="memes">😂 Мемы</button>
+        <button class="cat-pill" data-cat="art">🎨 Арт</button>
+        <button class="cat-pill" data-cat="interior">🪧 Интерьер</button>
       </div>
 
       <div class="gallery-loading" id="galleryLoading" style="display: none;">
@@ -186,8 +237,8 @@
 
       <div class="empty-state gallery-empty" id="galleryEmpty" style="display: none;">
         <div class="empty-icon">🖼️</div>
-        <h3>В галерее пока нет картин</h3>
-        <p>Перейдите на вкладку «Создать холст» и загрузите первую картину на сервер!</p>
+        <h3>В этой категории пока нет картин</h3>
+        <p>Перейдите во вкладку «Создать холст» и загрузите первую работу!</p>
       </div>
 
       <div class="gallery-grid" id="galleryGrid">
@@ -196,8 +247,161 @@
     </div>
   </main>
 
+  <!-- МОДАЛЬНОЕ ОКНО: Вход персонала (Niral + Модераторы) -->
+  <div class="modal-overlay" id="staffLoginModal" style="display: none;">
+    <div class="modal-content modal-auth-content">
+      <div class="modal-header">
+        <h3 class="modal-title">🛡️ Авторизация персонала</h3>
+        <button class="modal-close-btn" id="closeStaffLoginModal">✕</button>
+      </div>
+      <p class="modal-desc">Вход для Владельца Niral и назначенных модераторов Нирхаллы</p>
+      <form id="staffLoginForm" onsubmit="return false;">
+        <div class="form-group mb-3">
+          <label class="form-label">Логин:</label>
+          <input type="text" id="loginUsername" class="text-field" placeholder="Niral или логин модератора" required autocomplete="username">
+        </div>
+        <div class="form-group mb-4">
+          <label class="form-label">Пароль:</label>
+          <input type="password" id="loginPassword" class="text-field" placeholder="••••••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary w-100" id="doLoginBtn">Войти в систему</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО: Центр управления персоналом (Admin & Moderator Dashboard) -->
+  <div class="modal-overlay" id="staffPanelModal" style="display: none;">
+    <div class="modal-content modal-dashboard-content">
+      <div class="modal-header">
+        <div class="dash-title-wrap">
+          <h2 class="modal-title">🛡️ Центр управления Нирхаллы</h2>
+          <span class="role-badge" id="dashRoleBadge">Владелец Niral</span>
+        </div>
+        <button class="modal-close-btn" id="closeStaffPanelModal">✕</button>
+      </div>
+
+      <!-- Вкладки центра управления -->
+      <div class="dash-tabs">
+        <button class="dash-tab active" id="tabDashTokens">🎫 Генератор токенов</button>
+        <button class="dash-tab" id="tabDashMods" style="display: none;">👥 Модераторы & IP</button>
+        <button class="dash-tab" id="tabDashAudit" style="display: none;">📋 Журнал безопасности</button>
+      </div>
+
+      <!-- Контент вкладки: ТОКЕНЫ -->
+      <div class="dash-pane active" id="paneDashTokens">
+        <div class="token-generator-card">
+          <h4>Выпуск нового токена для игрока</h4>
+          <div class="token-create-form">
+            <div class="form-group">
+              <label class="form-label">Тип холста:</label>
+              <select id="newTokenTier" class="text-field select-field">
+                <option value="standard">🖼️ Стандартный холст (до 3×2 блоков)</option>
+                <option value="grand">👑 Великий холст Нирхаллы (до 8×5 блоков)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Никнейм игрока (для контроля нарушений):</label>
+              <input type="text" id="newTokenPlayer" class="text-field" placeholder="Например: Steve_2026">
+            </div>
+            <button class="btn btn-primary" id="btnCreateTokenAction">✨ Выпустить токен</button>
+          </div>
+        </div>
+
+        <div class="tokens-list-section mt-4">
+          <div class="section-sub-head">
+            <h4>Активные неиспользованные токены</h4>
+            <button class="btn btn-sm btn-secondary" id="btnRefreshTokens">🔄 Обновить</button>
+          </div>
+          <div class="tokens-table-wrap">
+            <table class="data-table" id="tokensTable">
+              <thead>
+                <tr>
+                  <th>Токен</th>
+                  <th>Тип</th>
+                  <th>Игрок</th>
+                  <th>Кем выдан</th>
+                  <th>Дата</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody id="tokensTableBody">
+                <tr><td colspan="6" class="text-center">Загрузка токенов...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Контент вкладки: МОДЕРАТОРЫ (Только Niral) -->
+      <div class="dash-pane" id="paneDashMods">
+        <div class="token-generator-card">
+          <h4>Создать нового модератора</h4>
+          <div class="mod-create-form">
+            <div class="form-group">
+              <label class="form-label">Логин модератора:</label>
+              <input type="text" id="newModUsername" class="text-field" placeholder="Alex_Mod">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Пароль:</label>
+              <input type="password" id="newModPassword" class="text-field" placeholder="Сложный пароль">
+            </div>
+            <button class="btn btn-primary" id="btnCreateModAction">➕ Добавить</button>
+          </div>
+        </div>
+
+        <div class="tokens-list-section mt-4">
+          <div class="section-sub-head">
+            <h4>Список модераторов и мониторинг смены IP (Защита от передачи аккаунта)</h4>
+            <button class="btn btn-sm btn-secondary" id="btnRefreshMods">🔄 Обновить</button>
+          </div>
+          <div class="tokens-table-wrap">
+            <table class="data-table" id="modsTable">
+              <thead>
+                <tr>
+                  <th>Модератор</th>
+                  <th>Статус</th>
+                  <th>Смены IP</th>
+                  <th>Известные IP адреса</th>
+                  <th>Последний вход</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="modsTableBody">
+                <tr><td colspan="6" class="text-center">Загрузка модераторов...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Контент вкладки: ЖУРНАЛ АУДИТА (Только Niral) -->
+      <div class="dash-pane" id="paneDashAudit">
+        <div class="section-sub-head">
+          <h4>Журнал событий безопасности в реальном времени</h4>
+          <button class="btn btn-sm btn-secondary" id="btnRefreshAudit">🔄 Обновить</button>
+        </div>
+        <div class="tokens-table-wrap audit-scroll-wrap">
+          <table class="data-table" id="auditTable">
+            <thead>
+              <tr>
+                <th>Время</th>
+                <th>Событие</th>
+                <th>Пользователь / Ник</th>
+                <th>IP адрес</th>
+                <th>Подробности</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <tr><td colspan="5" class="text-center">Загрузка журнала...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Модальное окно получения кода для игры -->
-  <div class="modal-overlay" id="resultModal">
+  <div class="modal-overlay" id="resultModal" style="display: none;">
     <div class="modal-content">
       <div class="modal-badge" id="modalBadge">ГОТОВО К УСТАНОВКЕ</div>
       <div class="duplicate-notice" id="duplicateNotice" style="display: none;">
@@ -226,7 +430,7 @@
         </div>
         <div class="step">
           <span class="step-num">2</span>
-          <p>Получите предмет <strong>«Холст картины»</strong> в руки.</p>
+          <p>Держите в инвентаре <strong id="modalCanvasReqText">«Имперский чистый холст»</strong>.</p>
         </div>
         <div class="step">
           <span class="step-num">3</span>

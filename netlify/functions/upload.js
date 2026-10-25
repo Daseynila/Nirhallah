@@ -4,7 +4,7 @@ const crypto = require("crypto");
 global.__artCache = global.__artCache || new Map();
 global.__tokenCache = global.__tokenCache || new Map();
 
-const MOD_PASSWORD = process.env.MOD_PASSWORD || "NiralVelikiyPravitel07";
+const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || "NiralVelikiyPravitel07";
 
 function getSafeStore(event) {
   try {
@@ -17,10 +17,36 @@ function getSafeStore(event) {
   return getStore("nirhalla-art-cache");
 }
 
+function getClientIP(event) {
+  const forwarded = event.headers["x-forwarded-for"];
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return event.headers["client-ip"] || "127.0.0.1";
+}
+
+async function verifyStaffSession(store, event, payload) {
+  const sessionToken = payload.sessionToken || event.headers["x-session-token"];
+  if (sessionToken) {
+    if (global.__authSessions && global.__authSessions.has(sessionToken)) {
+      return global.__authSessions.get(sessionToken);
+    }
+    try {
+      const s = await store.get("session_" + sessionToken, { type: "json" });
+      if (s) return s;
+    } catch (e) {}
+  }
+  const pass = payload.modPassword || event.headers["x-mod-password"];
+  if (pass === MASTER_PASSWORD) {
+    return { username: "Niral", role: "admin" };
+  }
+  return null;
+}
+
 exports.handler = async (event, context) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, X-Mod-Password",
+    "Access-Control-Allow-Headers": "Content-Type, X-Mod-Password, X-Session-Token",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
@@ -34,24 +60,36 @@ exports.handler = async (event, context) => {
 
   try {
     const payload = JSON.parse(event.body || "{}");
-    const { image, width, height, token, modPassword } = payload;
+    const { image, width, height, token, title, category } = payload;
+    const clientIP = getClientIP(event);
 
     if (!image || !width || !height) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Missing required fields: image, width, height" }),
+        body: JSON.stringify({ error: "Отсутствуют обязательные параметры: image, width, height" }),
       };
     }
 
     const parsedWidth = parseInt(width);
     const parsedHeight = parseInt(height);
 
+    if (isNaN(parsedWidth) || isNaN(parsedHeight) || parsedWidth < 1 || parsedHeight < 1 || parsedWidth > 8 || parsedHeight > 5) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "Недопустимый размер картины! Поддерживаются размеры от 1х1 до 8х5 блоков." }),
+      };
+    }
+
+    const isGrandSize = (parsedWidth > 3 || parsedHeight > 2 || (parsedWidth * parsedHeight > 6));
+    const tier = isGrandSize ? "grand" : "standard";
+
+    const store = getSafeStore(event);
+
     // Compute digital fingerprint (hash) of image + dimensions
     const hash = crypto.createHash("sha256").update(image + "_" + parsedWidth + "_" + parsedHeight).digest("hex").substring(0, 16);
     const hashKey = "hash_" + hash;
-
-    const store = getSafeStore(event);
 
     // 1. Check if identical artwork was already uploaded (Anti-spam / Duplicate prevention)
     let existingCode = null;
@@ -77,6 +115,7 @@ exports.handler = async (event, context) => {
           code: existingCode,
           width: parsedWidth,
           height: parsedHeight,
+          tier,
           isDuplicate: true,
           savedToBlobs: true,
           message: "Этот холст уже был создан ранее! Используйте код ниже."
@@ -84,42 +123,42 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 2. 🎟️ TOKEN CHECK: Require valid upload token (unless uploaded by moderator)
-    const isModerator = (modPassword === MOD_PASSWORD || event.headers["x-mod-password"] === MOD_PASSWORD);
-    
-    if (!isModerator) {
+    // 2. 🎟️ TOKEN CHECK & AUDIT TRAIL RECORDING
+    const staffSession = await verifyStaffSession(store, event, payload);
+    const isStaff = Boolean(staffSession);
+
+    let tokenMetadata = {
+      targetPlayer: isStaff ? staffSession.username : "Не указан",
+      usedToken: isStaff ? "STAFF_BYPASS" : "",
+      tokenIssuedBy: isStaff ? staffSession.username : "Администрация"
+    };
+
+    if (!isStaff) {
       if (!token || typeof token !== "string" || !token.trim()) {
         return {
           statusCode: 403,
           headers,
           body: JSON.stringify({
-            error: "Для загрузки картины требуется Токен загрузки! Приобретите его у администрации сервера Нирхалла."
+            error: "Для публикации картины требуется Токен загрузки! Приобретите его у администрации сервера Нирхалла."
           }),
         };
       }
 
       const cleanToken = token.trim().toUpperCase();
       const tokenKey = `token_${cleanToken}`;
-      let validToken = false;
+      let tokenData = null;
 
       try {
-        const tokenData = await store.get(tokenKey, { type: "json" });
-        if (tokenData) {
-          validToken = true;
-          // Burn the single-use token immediately!
-          await store.delete(tokenKey);
-          console.log(`[Token Burned] Token ${cleanToken} was successfully used.`);
-        }
+        tokenData = await store.get(tokenKey, { type: "json" });
       } catch (err) {
         console.warn("Token lookup failed in Blobs:", err.message);
       }
 
-      if (!validToken && global.__tokenCache.has(cleanToken)) {
-        validToken = true;
-        global.__tokenCache.delete(cleanToken);
+      if (!tokenData && global.__tokenCache.has(cleanToken)) {
+        tokenData = global.__tokenCache.get(cleanToken);
       }
 
-      if (!validToken) {
+      if (!tokenData) {
         return {
           statusCode: 403,
           headers,
@@ -128,15 +167,49 @@ exports.handler = async (event, context) => {
           }),
         };
       }
+
+      // Check Tier: If artwork is Grand (size > 3x2), require grand tier token!
+      if (isGrandSize && tokenData.tier !== "grand") {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: `Этот токен предназначен только для Стандартных холстов (до 3×2)! Для холста ${parsedWidth}×${parsedHeight} требуется токен «Великий холст Нирхаллы» (до 8×5).`
+          }),
+        };
+      }
+
+      // Burn the single-use token immediately!
+      try {
+        await store.delete(tokenKey);
+      } catch (e) {}
+      global.__tokenCache.delete(cleanToken);
+
+      tokenMetadata = {
+        targetPlayer: tokenData.targetPlayer || "Не указан",
+        usedToken: cleanToken,
+        tokenIssuedBy: tokenData.issuedBy || "Администрация"
+      };
     }
 
     // 3. Generate random 4-digit code (1000 - 9999)
     const code = String(Math.floor(1000 + Math.random() * 9000));
+    const cleanTitle = (title || "").trim() || `Холст #${code}`;
+    const cleanCategory = (category || "art").trim().toLowerCase();
+
     const artData = {
       code,
       image, // base64 data url
       width: parsedWidth,
       height: parsedHeight,
+      tier,
+      title: cleanTitle,
+      category: cleanCategory,
+      // 🕵️ Moderator / Admin Audit Evidence:
+      targetPlayer: tokenMetadata.targetPlayer,
+      uploaderIP: clientIP,
+      usedToken: tokenMetadata.usedToken,
+      tokenIssuedBy: tokenMetadata.tokenIssuedBy,
       hashKey,
       createdAt: Date.now()
     };
@@ -146,19 +219,38 @@ exports.handler = async (event, context) => {
     let blobErrorMsg = null;
     try {
       await store.setJSON(code, artData, {
-        metadata: { width: String(parsedWidth), height: String(parsedHeight) }
+        metadata: {
+          width: String(parsedWidth),
+          height: String(parsedHeight),
+          tier
+        }
       });
       // Store hash pointer for instant duplicate lookup
       await store.set(hashKey, code);
       savedToBlobs = true;
-      console.log(`[Art Upload] Saved art to Blobs with code: ${code}`);
     } catch (blobErr) {
       blobErrorMsg = blobErr.message;
-      console.warn("Netlify Blobs not available:", blobErr.message);
+      console.warn("Netlify Blobs upload save failed:", blobErr.message);
     }
 
     // Save in memory cache
     global.__artCache.set(code, artData);
+
+    // Write to security audit log
+    try {
+      let logs = [];
+      try { logs = await store.get("sys_audit_log", { type: "json" }) || []; } catch (e) {}
+      logs.unshift({
+        id: crypto.randomBytes(4).toString("hex"),
+        timestamp: Date.now(),
+        type: "ART_UPLOAD",
+        username: tokenMetadata.targetPlayer,
+        ip: clientIP,
+        text: `Игрок [${tokenMetadata.targetPlayer}] (IP: ${clientIP}) загрузил арт #${code} (${parsedWidth}×${parsedHeight} блока, ${tier === "grand" ? "Великий" : "Стандарт"}, токен: ${tokenMetadata.usedToken})`
+      });
+      if (logs.length > 250) logs = logs.slice(0, 250);
+      await store.setJSON("sys_audit_log", logs);
+    } catch (e) {}
 
     return {
       statusCode: 200,
@@ -168,10 +260,13 @@ exports.handler = async (event, context) => {
         code,
         width: parsedWidth,
         height: parsedHeight,
+        tier,
+        title: cleanTitle,
+        category: cleanCategory,
         isDuplicate: false,
         savedToBlobs,
         blobError: blobErrorMsg,
-        message: "Art uploaded successfully"
+        message: "Холст успешно загружен и готов к установке в Майнкрафте!"
       }),
     };
   } catch (err) {
