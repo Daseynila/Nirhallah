@@ -1,8 +1,10 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
 const crypto = require("crypto");
 
-// In-memory fallback cache for development or serverless session
 global.__artCache = global.__artCache || new Map();
+global.__tokenCache = global.__tokenCache || new Map();
+
+const MOD_PASSWORD = process.env.MOD_PASSWORD || "NiralVelikiyPravitel07";
 
 function getSafeStore(event) {
   try {
@@ -16,10 +18,9 @@ function getSafeStore(event) {
 }
 
 exports.handler = async (event, context) => {
-  // Enable CORS
   const headers = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Mod-Password",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
@@ -33,7 +34,7 @@ exports.handler = async (event, context) => {
 
   try {
     const payload = JSON.parse(event.body || "{}");
-    const { image, width, height } = payload;
+    const { image, width, height, token, modPassword } = payload;
 
     if (!image || !width || !height) {
       return {
@@ -58,10 +59,9 @@ exports.handler = async (event, context) => {
       existingCode = await store.get(hashKey, { type: "text" });
     } catch (e) {}
 
-    // Check memory fallback
     if (!existingCode && global.__artCache) {
       for (const [cd, item] of global.__artCache.entries()) {
-        if (!cd.startsWith("hash_") && item.image === image && item.width === parsedWidth && item.height === parsedHeight) {
+        if (!cd.startsWith("hash_") && !cd.startsWith("token_") && item.image === image && item.width === parsedWidth && item.height === parsedHeight) {
           existingCode = cd;
           break;
         }
@@ -84,7 +84,53 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Generate random 4-digit code (1000 - 9999)
+    // 2. 🎟️ TOKEN CHECK: Require valid upload token (unless uploaded by moderator)
+    const isModerator = (modPassword === MOD_PASSWORD || event.headers["x-mod-password"] === MOD_PASSWORD);
+    
+    if (!isModerator) {
+      if (!token || typeof token !== "string" || !token.trim()) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({
+            error: "Для загрузки картины требуется Токен загрузки! Приобретите его у администрации сервера Нирхалла."
+          }),
+        };
+      }
+
+      const cleanToken = token.trim().toUpperCase();
+      const tokenKey = `token_${cleanToken}`;
+      let validToken = false;
+
+      try {
+        const tokenData = await store.get(tokenKey, { type: "json" });
+        if (tokenData) {
+          validToken = true;
+          // Burn the single-use token immediately!
+          await store.delete(tokenKey);
+          console.log(`[Token Burned] Token ${cleanToken} was successfully used.`);
+        }
+      } catch (err) {
+        console.warn("Token lookup failed in Blobs:", err.message);
+      }
+
+      if (!validToken && global.__tokenCache.has(cleanToken)) {
+        validToken = true;
+        global.__tokenCache.delete(cleanToken);
+      }
+
+      if (!validToken) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({
+            error: "Неверный или уже использованный токен загрузки! Проверьте правильность кода или обратитесь к модераторам."
+          }),
+        };
+      }
+    }
+
+    // 3. Generate random 4-digit code (1000 - 9999)
     const code = String(Math.floor(1000 + Math.random() * 9000));
     const artData = {
       code,

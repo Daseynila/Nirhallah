@@ -92,8 +92,14 @@
             </label>
           </div>
 
-          <button class="btn btn-primary" id="generateBtn" disabled>
-            ✨ Создать холст для Майнкрафта
+          <h2 class="card-title mt-4">4. Токен загрузки (Право автора)</h2>
+          <div class="token-input-box">
+            <input type="text" id="tokenInput" placeholder="Введите токен (напр. NIR-8492)..." maxlength="15" class="token-field">
+            <p class="field-hint">Токен загрузки выдается администрацией сервера Нирхалла или приобретается в донат-магазине.</p>
+          </div>
+
+          <button class="btn btn-primary mt-3" id="generateBtn" disabled>
+            ✨ Опубликовать и получить код для Майнкрафта
           </button>
         </section>
 
@@ -153,6 +159,23 @@
           </div>
           <button class="btn btn-secondary" id="refreshGalleryBtn">🔄 Обновить</button>
           <button class="btn btn-mod" id="modToggleBtn">🛡️ Вход модератора</button>
+        </div>
+      </div>
+
+      <!-- Панель управления токенами для модератора -->
+      <div class="mod-admin-panel" id="modAdminPanel" style="display: none;">
+        <div class="mod-panel-header">
+          <div class="mod-panel-title">
+            <span>🛡️ Панель модератора Нирхаллы</span>
+            <span class="mod-badge">Активна</span>
+          </div>
+          <button class="btn btn-primary btn-sm" id="createTokenBtn">🎫 Создать токен для игрока</button>
+        </div>
+        <div class="mod-tokens-container">
+          <span class="mod-tokens-label">Активные неиспользованные токены:</span>
+          <div class="mod-tokens-list" id="modTokensList">
+            <span class="text-muted">Загрузка токенов...</span>
+          </div>
         </div>
       </div>
 

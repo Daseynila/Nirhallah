@@ -40,8 +40,8 @@ exports.handler = async (event, context) => {
       const blobs = rawList.blobs || [];
       
       for (const b of blobs) {
-        // Skip internal duplicate hashes
-        if (b.key.startsWith("hash_")) continue;
+        // Skip internal duplicate hashes and auth tokens
+        if (b.key.startsWith("hash_") || b.key.startsWith("token_")) continue;
 
         try {
           const data = await store.get(b.key, { type: "json" });
@@ -66,7 +66,7 @@ exports.handler = async (event, context) => {
     // 2. Fallback to in-memory cache
     if (items.length === 0 && global.__artCache.size > 0) {
       for (const [code, data] of global.__artCache.entries()) {
-        if (code.startsWith("hash_")) continue;
+        if (code.startsWith("hash_") || code.startsWith("token_")) continue;
         items.push({
           code: data.code || code,
           width: data.width || 1,

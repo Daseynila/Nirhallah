@@ -25,6 +25,11 @@
   to = "/.netlify/functions/delete"
   status = 200
 
+[[redirects]]
+  from = "/api/tokens"
+  to = "/.netlify/functions/tokens"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

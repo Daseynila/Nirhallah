@@ -2,7 +2,7 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 
 global.__artCache = global.__artCache || new Map();
 
-const MOD_PASSWORD = process.env.MOD_PASSWORD || "nirhalla2026";
+const MOD_PASSWORD = process.env.MOD_PASSWORD || "NiralVelikiyPravitel07";
 
 function getSafeStore(event) {
   try {
@@ -62,7 +62,6 @@ exports.handler = async (event, context) => {
     // Delete from Netlify Blobs
     try {
       const store = getSafeStore(event);
-      // Try to clean up hash key as well
       const artData = await store.get(code, { type: "json" });
       if (artData && artData.hashKey) {
         await store.delete(artData.hashKey);

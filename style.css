@@ -969,3 +969,128 @@ body {
   margin-bottom: 0.75rem;
   text-align: center;
 }
+
+/* Token Input Field */
+.token-input-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.token-field {
+  background: rgba(15, 17, 23, 0.8);
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  color: var(--accent-gold);
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.token-field:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+/* Moderator Token Panel */
+.mod-admin-panel {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.mod-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.mod-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  color: #34d399;
+  font-size: 1rem;
+}
+
+.mod-badge {
+  background: rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+}
+
+.mod-tokens-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mod-tokens-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mod-tokens-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  min-height: 36px;
+  align-items: center;
+}
+
+.token-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.token-pill:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  transform: translateY(-1px);
+}
+
+.token-pill-del {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.token-pill-del:hover {
+  opacity: 1;
+}

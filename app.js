@@ -57,6 +57,7 @@ const viewWallBtn = document.getElementById('viewWallBtn');
 const viewPureBtn = document.getElementById('viewPureBtn');
 const duplicateNotice = document.getElementById('duplicateNotice');
 const modalBadge = document.getElementById('modalBadge');
+const tokenInput = document.getElementById('tokenInput');
 
 // Initialize Drag & Drop
 ['dragenter', 'dragover'].forEach(eventName => {
@@ -286,26 +287,42 @@ generateBtn.addEventListener('click', async () => {
   let code = null;
   let isDuplicate = false;
 
+  const enteredToken = tokenInput ? tokenInput.value.trim() : '';
+  const modPass = sessionStorage.getItem('nirhalla_mod_pass') || '';
+
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Mod-Password': modPass
+      },
       body: JSON.stringify({
         image: dataUrl,
         width: currentWidthBlocks,
-        height: currentHeightBlocks
+        height: currentHeightBlocks,
+        token: enteredToken,
+        modPassword: modPass
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      code = data.code;
-      isDuplicate = Boolean(data.isDuplicate);
-    } else {
-      console.warn("Server responded with error:", res.status);
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert('❌ Ошибка публикации:\n' + (data.error || 'Требуется действительный Токен загрузки!'));
+      generateBtn.disabled = false;
+      generateBtn.textContent = originalText;
+      return;
     }
+
+    code = data.code;
+    isDuplicate = Boolean(data.isDuplicate);
   } catch (err) {
-    console.warn("Network request failed (running in offline/local preview mode):", err);
+    console.warn("Network request failed:", err);
+    alert('Ошибка соединения с сервером при загрузке картины.');
+    generateBtn.disabled = false;
+    generateBtn.textContent = originalText;
+    return;
   }
 
   // Fallback for offline testing or direct file preview
@@ -387,6 +404,9 @@ const gallerySearchInput = document.getElementById('gallerySearchInput');
 const refreshGalleryBtn = document.getElementById('refreshGalleryBtn');
 const galleryCountBadge = document.getElementById('galleryCountBadge');
 const modToggleBtn = document.getElementById('modToggleBtn');
+const modAdminPanel = document.getElementById('modAdminPanel');
+const createTokenBtn = document.getElementById('createTokenBtn');
+const modTokensList = document.getElementById('modTokensList');
 
 let cachedGalleryItems = [];
 
@@ -402,6 +422,110 @@ function updateModBtn() {
       modToggleBtn.textContent = '🛡️ Вход модератора';
     }
   }
+  if (modAdminPanel) {
+    modAdminPanel.style.display = isMod ? 'flex' : 'none';
+    if (isMod) {
+      loadModTokens();
+    }
+  }
+}
+
+// Load Moderator Tokens from API
+async function loadModTokens() {
+  if (!modTokensList) return;
+  const modPass = sessionStorage.getItem('nirhalla_mod_pass');
+  if (!modPass) return;
+
+  try {
+    const res = await fetch('/api/tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', password: modPass })
+    });
+
+    if (res.status === 403) {
+      sessionStorage.removeItem('nirhalla_mod_pass');
+      updateModBtn();
+      return;
+    }
+
+    const data = await res.json();
+    modTokensList.innerHTML = '';
+
+    if (!data.tokens || data.tokens.length === 0) {
+      modTokensList.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">Нет активных токенов. Нажмите «Создать токен для игрока», чтобы выдать ключ.</span>';
+      return;
+    }
+
+    data.tokens.forEach(t => {
+      const pill = document.createElement('div');
+      pill.className = 'token-pill';
+      pill.innerHTML = `
+        <span>🎫 ${t.token}</span>
+        <span class="token-pill-del" title="Удалить токен">✕</span>
+      `;
+
+      // Click token to copy
+      pill.addEventListener('click', (e) => {
+        if (e.target.classList.contains('token-pill-del')) return;
+        navigator.clipboard.writeText(t.token).then(() => {
+          alert(`✅ Токен ${t.token} скопирован в буфер обмена! Передайте его игроку.`);
+        });
+      });
+
+      // Delete token
+      const delSpan = pill.querySelector('.token-pill-del');
+      delSpan.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Удалить неиспользованный токен ${t.token}?`)) return;
+        await fetch('/api/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete', password: modPass, token: t.token })
+        });
+        loadModTokens();
+      });
+
+      modTokensList.appendChild(pill);
+    });
+  } catch (err) {
+    console.warn("Failed to load tokens:", err);
+  }
+}
+
+// Create new single-use upload token
+if (createTokenBtn) {
+  createTokenBtn.addEventListener('click', async () => {
+    const modPass = sessionStorage.getItem('nirhalla_mod_pass');
+    if (!modPass) return;
+
+    try {
+      createTokenBtn.disabled = true;
+      createTokenBtn.textContent = '⏳ Создание...';
+
+      const res = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', password: modPass })
+      });
+
+      const data = await res.json();
+      createTokenBtn.disabled = false;
+      createTokenBtn.textContent = '🎫 Создать токен для игрока';
+
+      if (res.ok && data.token) {
+        navigator.clipboard.writeText(data.token);
+        alert(`🎉 Токен создан и скопирован в буфер:\n\n${data.token}\n\nПередайте его игроку для публикации одного арта.`);
+        loadModTokens();
+      } else {
+        alert('Ошибка создания токена: ' + (data.error || 'Неизвестная ошибка'));
+      }
+    } catch (e) {
+      createTokenBtn.disabled = false;
+      createTokenBtn.textContent = '🎫 Создать токен для игрока';
+      alert('Ошибка соединения с сервером.');
+    }
+  });
 }
 
 if (modToggleBtn) {
