@@ -52,6 +52,7 @@ const generateBtn = document.getElementById('generateBtn');
 const canvasWrapper = document.getElementById('canvasWrapper');
 const emptyState = document.getElementById('emptyState');
 const wallScene = document.getElementById('wallScene');
+const frameContainer = document.getElementById('frameContainer');
 const mainCanvas = document.getElementById('mainCanvas');
 const gridOverlay = document.getElementById('gridOverlay');
 const infoBar = document.getElementById('infoBar');
@@ -320,8 +321,8 @@ function renderCanvas() {
 
   // Рассчитываем пропорциональный размер предпросмотра на стене,
   // чтобы картина всегда выглядела четко и красиво в деревянной рамке
-  const maxDisplayW = 480;
-  const maxDisplayH = 340;
+  const maxDisplayW = 540;
+  const maxDisplayH = 350;
   const aspect = targetW / targetH;
   let dispW, dispH;
   if (aspect > maxDisplayW / maxDisplayH) {
@@ -331,8 +332,16 @@ function renderCanvas() {
     dispH = maxDisplayH;
     dispW = maxDisplayH * aspect;
   }
-  mainCanvas.style.width = `${Math.round(dispW)}px`;
-  mainCanvas.style.height = `${Math.round(dispH)}px`;
+
+  const dispWRounded = Math.round(dispW);
+  const dispHRounded = Math.round(dispH);
+
+  if (frameContainer) {
+    frameContainer.style.width = `${dispWRounded}px`;
+    frameContainer.style.height = `${dispHRounded}px`;
+  }
+  mainCanvas.style.width = `${dispWRounded}px`;
+  mainCanvas.style.height = `${dispHRounded}px`;
 
   const ctx = mainCanvas.getContext('2d');
   drawImageToCanvas(ctx, currentImage, targetW, targetH, currentFitMode);
