@@ -1090,6 +1090,54 @@ body {
 }
 
 /* ============================================================
+   FIT MODE SELECTOR (COVER / CONTAIN / STRETCH)
+   ============================================================ */
+.fit-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.fit-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem 0.5rem;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.fit-btn span {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.fit-btn small {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.fit-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.fit-btn.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  color: #fbbf24;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+/* ============================================================
    FORM FIELDS & INPUTS
    ============================================================ */
 .form-row {

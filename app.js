@@ -32,6 +32,7 @@ let currentImage = null;
 let currentWidthBlocks = 1;
 let currentHeightBlocks = 1;
 let currentTier = "standard";
+let currentFitMode = "cover"; // 'cover' (default: smart edge crop, NO distortion), 'contain', 'stretch'
 let activeCategoryFilter = "all";
 let cachedGalleryItems = [];
 
@@ -39,6 +40,7 @@ let cachedGalleryItems = [];
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const tierNotice = document.getElementById('tierNotice');
+const fitSelector = document.getElementById('fitSelector');
 const artTitleInput = document.getElementById('artTitleInput');
 const artCategorySelect = document.getElementById('artCategorySelect');
 const ditherToggle = document.getElementById('ditherToggle');
@@ -227,7 +229,77 @@ function updateSizeInfo() {
 setupSizeSelectors();
 
 // ==========================================
-// 3. CANVAS RENDERING & DITHERING
+// 3. FIT MODE SELECTOR (COVER / CONTAIN / STRETCH)
+// ==========================================
+if (fitSelector) {
+  const fitBtns = fitSelector.querySelectorAll('.fit-btn');
+  fitBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      fitBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFitMode = btn.dataset.fit || 'cover';
+      if (currentImage) renderCanvas();
+    });
+  });
+}
+
+// Draw Image onto Canvas with Smart Fitting Modes
+function drawImageToCanvas(ctx, img, targetW, targetH, mode = 'cover') {
+  ctx.clearRect(0, 0, targetW, targetH);
+
+  if (mode === 'stretch') {
+    // Direct stretch
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+    return;
+  }
+
+  const imgW = img.width;
+  const imgH = img.height;
+  const imgRatio = imgW / imgH;
+  const targetRatio = targetW / targetH;
+
+  if (mode === 'cover') {
+    // ✂️ УМНОЕ ЗАПОЛНЕНИЕ (КАК БЫЛО РАНЬШЕ):
+    // Сохраняет 100% исходных пропорций без растяжения лиц/объектов!
+    // Симметрично центрирует и обрезает выступающие края, холст заполнен полностью.
+    let sx, sy, sW, sH;
+    if (imgRatio > targetRatio) {
+      // Исходник шире холста: режем лишнее слева и справа
+      sH = imgH;
+      sW = imgH * targetRatio;
+      sx = (imgW - sW) / 2;
+      sy = 0;
+    } else {
+      // Исходник выше холста: режем лишнее сверху и снизу
+      sW = imgW;
+      sH = imgW / targetRatio;
+      sx = 0;
+      sy = (imgH - sH) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sW, sH, 0, 0, targetW, targetH);
+  } else if (mode === 'contain') {
+    // 🖼️ ВПИСАТЬ ЦЕЛИКОМ (100% картинки без обрезки)
+    ctx.fillStyle = '#181920';
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    let dx, dy, dW, dH;
+    if (imgRatio > targetRatio) {
+      dW = targetW;
+      dH = targetW / imgRatio;
+      dx = 0;
+      dy = (targetH - dH) / 2;
+    } else {
+      dH = targetH;
+      dW = targetH * imgRatio;
+      dx = (targetW - dW) / 2;
+      dy = 0;
+    }
+    ctx.drawImage(img, 0, 0, imgW, imgH, dx, dy, dW, dH);
+  }
+}
+
+// ==========================================
+// 4. CANVAS RENDERING & DITHERING
 // ==========================================
 ditherToggle.addEventListener('change', () => {
   if (currentImage) renderCanvas();
@@ -246,8 +318,24 @@ function renderCanvas() {
   mainCanvas.width = targetW;
   mainCanvas.height = targetH;
 
+  // Рассчитываем пропорциональный размер предпросмотра на стене,
+  // чтобы картина всегда выглядела четко и красиво в деревянной рамке
+  const maxDisplayW = 480;
+  const maxDisplayH = 340;
+  const aspect = targetW / targetH;
+  let dispW, dispH;
+  if (aspect > maxDisplayW / maxDisplayH) {
+    dispW = maxDisplayW;
+    dispH = maxDisplayW / aspect;
+  } else {
+    dispH = maxDisplayH;
+    dispW = maxDisplayH * aspect;
+  }
+  mainCanvas.style.width = `${Math.round(dispW)}px`;
+  mainCanvas.style.height = `${Math.round(dispH)}px`;
+
   const ctx = mainCanvas.getContext('2d');
-  ctx.drawImage(currentImage, 0, 0, targetW, targetH);
+  drawImageToCanvas(ctx, currentImage, targetW, targetH, currentFitMode);
 
   if (ditherToggle.checked) {
     applyFloydSteinbergDithering(ctx, targetW, targetH);
