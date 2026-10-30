@@ -72,6 +72,7 @@ exports.handler = async (event, context) => {
         "Content-Type": "image/png",
         "X-Art-Width": String(artData.width),
         "X-Art-Height": String(artData.height),
+        "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
       },
       body: base64Data,
       isBase64Encoded: true,

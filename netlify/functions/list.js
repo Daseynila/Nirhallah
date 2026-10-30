@@ -60,30 +60,36 @@ exports.handler = async (event, context) => {
       const rawList = await store.list();
       const blobs = rawList.blobs || [];
 
-      for (const b of blobs) {
-        // Skip internal system keys, hashes, tokens, sessions, moderator accounts, and audit log
-        if (
-          b.key.startsWith("hash_") ||
-          b.key.startsWith("token_") ||
-          b.key.startsWith("session_") ||
-          b.key.startsWith("mod_user_") ||
-          b.key.startsWith("sys_")
-        ) {
-          continue;
-        }
+      // Filter only art blobs
+      const artBlobs = blobs.filter(b => 
+        !b.key.startsWith("hash_") &&
+        !b.key.startsWith("token_") &&
+        !b.key.startsWith("session_") &&
+        !b.key.startsWith("mod_user_") &&
+        !b.key.startsWith("sys_")
+      );
 
-        try {
-          const data = await store.get(b.key, { type: "json" });
-          if (data && data.code) {
+      // Fetch items in parallel WITHOUT packing megabytes of base64 images into one response!
+      const fetchedItems = await Promise.all(
+        artBlobs.map(async b => {
+          try {
+            const data = await store.get(b.key, { type: "json" });
+            if (!data) return null;
+
+            const code = data.code || b.key;
+            const width = data.width || 1;
+            const height = data.height || 1;
+            const isGrand = data.tier === "grand" || width > 3 || height > 3 || (width * height > 6);
+
             const artItem = {
-              code: data.code || b.key,
-              width: data.width || 1,
-              height: data.height || 1,
-              tier: data.tier || ((data.width > 3 || data.height > 2) ? "grand" : "standard"),
-              title: data.title || `Холст #${data.code || b.key}`,
+              code,
+              width,
+              height,
+              tier: isGrand ? "grand" : "standard",
+              title: data.title || `Холст #${code}`,
               category: data.category || "art",
               createdAt: data.createdAt || b.uploadedAt || Date.now(),
-              image: data.image
+              imageUrl: `/api/get?code=${code}&format=png`
             };
 
             // 🔒 PRIVACY PROTECTION: Only expose audit metadata to verified staff!
@@ -96,12 +102,15 @@ exports.handler = async (event, context) => {
               };
             }
 
-            items.push(artItem);
+            return artItem;
+          } catch (itemErr) {
+            console.warn("Error reading blob " + b.key, itemErr.message);
+            return null;
           }
-        } catch (itemErr) {
-          console.warn("Error reading blob " + b.key, itemErr.message);
-        }
-      }
+        })
+      );
+
+      items.push(...fetchedItems.filter(Boolean));
     } catch (err) {
       blobError = err.message;
       console.warn("Netlify Blobs list failed:", err.message);
@@ -120,15 +129,19 @@ exports.handler = async (event, context) => {
           continue;
         }
 
+        const width = data.width || 1;
+        const height = data.height || 1;
+        const isGrand = data.tier === "grand" || width > 3 || height > 3 || (width * height > 6);
+
         const artItem = {
           code: data.code || code,
-          width: data.width || 1,
-          height: data.height || 1,
-          tier: data.tier || ((data.width > 3 || data.height > 2) ? "grand" : "standard"),
+          width,
+          height,
+          tier: isGrand ? "grand" : "standard",
           title: data.title || `Холст #${code}`,
           category: data.category || "art",
           createdAt: data.createdAt || Date.now(),
-          image: data.image
+          imageUrl: `/api/get?code=${code}&format=png`
         };
 
         if (isStaff) {

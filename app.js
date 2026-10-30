@@ -1326,8 +1326,9 @@ function renderGalleryGrid() {
     const card = document.createElement('div');
     card.className = 'art-card';
 
-    const isGrand = (item.tier === 'grand' || item.width > 3 || item.height > 2 || (item.width * item.height > 6));
+    const isGrand = (item.tier === 'grand' || item.width > 3 || item.height > 3 || (item.width * item.height > 6));
     const catName = getCategoryName(item.category);
+    const thumbSrc = item.imageUrl || item.image || `/api/get?code=${item.code}&format=png`;
 
     const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString('ru-RU', {
       day: 'numeric',
@@ -1359,7 +1360,7 @@ function renderGalleryGrid() {
 
     card.innerHTML = `
       <div class="art-card-thumb-wrap">
-        <img class="art-card-thumb" src="${item.image}" alt="Холст #${item.code}" loading="lazy">
+        <img class="art-card-thumb" src="${thumbSrc}" alt="Холст #${item.code}" loading="lazy">
       </div>
       <div class="art-card-body">
         <div class="art-card-header">
