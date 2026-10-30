@@ -181,6 +181,10 @@ function handleFile(file) {
       wallScene.style.display = 'block';
       infoBar.style.display = 'flex';
       generateBtn.disabled = false;
+
+      // Smart auto-orientation detection & recommendation
+      detectAndSuggestOrientation(img);
+
       renderCanvas();
     };
     img.src = e.target.result;
@@ -189,10 +193,21 @@ function handleFile(file) {
 }
 
 // ==========================================
-// 2. SIZE SELECTOR LOGIC (STANDARD & GRAND)
+// 2. SIZE SELECTOR & ORIENTATION FILTER LOGIC
 // ==========================================
 function setupSizeSelectors() {
   const allSizeBtns = document.querySelectorAll('.size-btn');
+  const orientTabs = document.querySelectorAll('.orient-tab');
+
+  orientTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      orientTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const orient = tab.dataset.orient || 'all';
+      filterSizesByOrientation(orient, true);
+    });
+  });
+
   allSizeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       allSizeBtns.forEach(b => b.classList.remove('active'));
@@ -208,8 +223,113 @@ function setupSizeSelectors() {
   });
 }
 
+function filterSizesByOrientation(orient, autoSelectIfHidden = false) {
+  const allSizeBtns = document.querySelectorAll('.size-btn');
+  let hasActiveVisible = false;
+  let firstVisible = null;
+
+  allSizeBtns.forEach(btn => {
+    const btnOrient = btn.dataset.orient;
+    const isVisible = (orient === 'all' || btnOrient === orient);
+    if (isVisible) {
+      btn.style.display = 'flex';
+      if (!firstVisible) firstVisible = btn;
+      if (btn.classList.contains('active')) hasActiveVisible = true;
+    } else {
+      btn.style.display = 'none';
+    }
+  });
+
+  // Hide empty groups if all buttons in that group are hidden
+  ['sizeSelectorStandard', 'sizeSelectorGrand'].forEach(id => {
+    const container = document.getElementById(id);
+    if (container) {
+      const prevTitle = container.previousElementSibling;
+      const count = Array.from(container.querySelectorAll('.size-btn')).filter(b => b.style.display !== 'none').length;
+      if (count === 0) {
+        container.style.display = 'none';
+        if (prevTitle && prevTitle.classList.contains('size-group-title')) prevTitle.style.display = 'none';
+      } else {
+        container.style.display = 'grid';
+        if (prevTitle && prevTitle.classList.contains('size-group-title')) prevTitle.style.display = 'block';
+      }
+    }
+  });
+
+  if (!hasActiveVisible && firstVisible && autoSelectIfHidden) {
+    allSizeBtns.forEach(b => b.classList.remove('active'));
+    firstVisible.classList.add('active');
+    currentWidthBlocks = parseInt(firstVisible.dataset.w);
+    currentHeightBlocks = parseInt(firstVisible.dataset.h);
+    currentTier = firstVisible.dataset.tier || "standard";
+    updateSizeInfo();
+    if (currentImage) renderCanvas();
+  }
+}
+
+function detectAndSuggestOrientation(img) {
+  const aspect = img.width / img.height;
+  const orientTabs = document.querySelectorAll('.orient-tab');
+  const autoNotice = document.getElementById('autoOrientNotice');
+  let targetOrient = 'all';
+  let noticeMsg = '';
+
+  if (aspect <= 0.85) {
+    targetOrient = 'vertical';
+    noticeMsg = `📱 <strong>Распознан телефонный / портретный формат (${img.width}×${img.height})!</strong> Автоматически выбрана вертикальная сетка холстов (растягивается вверх и вниз без обрезки).`;
+  } else if (aspect >= 1.25) {
+    targetOrient = 'horizontal';
+    noticeMsg = `🖥️ <strong>Распознан мониторный / альбомный формат (${img.width}×${img.height})!</strong> Выбраны горизонтальные холсты.`;
+  } else {
+    targetOrient = 'square';
+    noticeMsg = `⬛ <strong>Распознан квадратный формат (${img.width}×${img.height})!</strong> Выбраны квадратные холсты.`;
+  }
+
+  // Switch active tab
+  orientTabs.forEach(t => {
+    if (t.dataset.orient === targetOrient) t.classList.add('active');
+    else t.classList.remove('active');
+  });
+
+  filterSizesByOrientation(targetOrient, false);
+  selectBestSizeForImage(img, targetOrient);
+
+  if (autoNotice) {
+    autoNotice.innerHTML = noticeMsg;
+    autoNotice.style.display = 'block';
+  }
+}
+
+function selectBestSizeForImage(img, orient) {
+  const allSizeBtns = document.querySelectorAll('.size-btn');
+  const visibleBtns = Array.from(allSizeBtns).filter(b => b.style.display !== 'none');
+  if (visibleBtns.length === 0) return;
+
+  const imgAspect = img.width / img.height;
+  let bestBtn = visibleBtns[0];
+  let minDiff = Infinity;
+
+  visibleBtns.forEach(btn => {
+    const w = parseInt(btn.dataset.w);
+    const h = parseInt(btn.dataset.h);
+    const btnAspect = (w * 128) / (h * 128);
+    const diff = Math.abs(btnAspect - imgAspect);
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestBtn = btn;
+    }
+  });
+
+  allSizeBtns.forEach(b => b.classList.remove('active'));
+  bestBtn.classList.add('active');
+  currentWidthBlocks = parseInt(bestBtn.dataset.w);
+  currentHeightBlocks = parseInt(bestBtn.dataset.h);
+  currentTier = bestBtn.dataset.tier || "standard";
+  updateSizeInfo();
+}
+
 function updateSizeInfo() {
-  const isGrand = (currentTier === "grand" || currentWidthBlocks > 3 || currentHeightBlocks > 2 || (currentWidthBlocks * currentHeightBlocks > 6));
+  const isGrand = (currentTier === "grand" || currentWidthBlocks > 3 || currentHeightBlocks > 3 || (currentWidthBlocks * currentHeightBlocks > 6));
   
   infoBlocks.textContent = `${currentWidthBlocks} × ${currentHeightBlocks} блоков`;
   infoMaps.textContent = `${currentWidthBlocks * currentHeightBlocks} карт`;
@@ -220,10 +340,10 @@ function updateSizeInfo() {
   if (tierNotice) {
     if (isGrand) {
       tierNotice.className = "tier-warning-notice grand-alert";
-      tierNotice.innerHTML = "👑 Для этого размера требуется токен <strong>«Великий холст Нирхаллы»</strong> (монументальный).";
+      tierNotice.innerHTML = "👑 Для этого размера требуется токен <strong>«Великий холст Нирхаллы»</strong> (монументальный, до 8×5 / 5×8).";
     } else {
       tierNotice.className = "tier-warning-notice";
-      tierNotice.innerHTML = "ℹ️ Для этого размера требуется токен <strong>«Имперский чистый холст»</strong>.";
+      tierNotice.innerHTML = "ℹ️ Для этого размера требуется токен <strong>«Имперский чистый холст»</strong> (до 6 блоков).";
     }
   }
 }
@@ -322,7 +442,7 @@ function renderCanvas() {
   // Рассчитываем пропорциональный размер предпросмотра на стене,
   // чтобы картина всегда выглядела четко и красиво в деревянной рамке
   const maxDisplayW = 540;
-  const maxDisplayH = 350;
+  const maxDisplayH = 420;
   const aspect = targetW / targetH;
   let dispW, dispH;
   if (aspect > maxDisplayW / maxDisplayH) {
@@ -467,7 +587,7 @@ generateBtn.addEventListener('click', async () => {
 
   let code = null;
   let isDuplicate = false;
-  let isGrand = (currentWidthBlocks > 3 || currentHeightBlocks > 2 || (currentWidthBlocks * currentHeightBlocks > 6));
+  let isGrand = (currentWidthBlocks > 3 || currentHeightBlocks > 3 || (currentWidthBlocks * currentHeightBlocks > 6));
 
   try {
     const res = await fetch('/api/upload', {

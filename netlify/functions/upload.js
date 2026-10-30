@@ -74,15 +74,15 @@ exports.handler = async (event, context) => {
     const parsedWidth = parseInt(width);
     const parsedHeight = parseInt(height);
 
-    if (isNaN(parsedWidth) || isNaN(parsedHeight) || parsedWidth < 1 || parsedHeight < 1 || parsedWidth > 8 || parsedHeight > 5) {
+    if (isNaN(parsedWidth) || isNaN(parsedHeight) || parsedWidth < 1 || parsedHeight < 1 || parsedWidth > 8 || parsedHeight > 8 || (parsedWidth * parsedHeight > 40)) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Недопустимый размер картины! Поддерживаются размеры от 1х1 до 8х5 блоков." }),
+        body: JSON.stringify({ error: "Недопустимый размер картины! Поддерживаются размеры до 8×5 или 5×8 блоков (не более 40 карт)." }),
       };
     }
 
-    const isGrandSize = (parsedWidth > 3 || parsedHeight > 2 || (parsedWidth * parsedHeight > 6));
+    const isGrandSize = (parsedWidth > 3 || parsedHeight > 3 || (parsedWidth * parsedHeight > 6));
     const tier = isGrandSize ? "grand" : "standard";
 
     const store = getSafeStore(event);
@@ -168,13 +168,13 @@ exports.handler = async (event, context) => {
         };
       }
 
-      // Check Tier: If artwork is Grand (size > 3x2), require grand tier token!
+      // Check Tier: If artwork is Grand (size > standard), require grand tier token!
       if (isGrandSize && tokenData.tier !== "grand") {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({
-            error: `Этот токен предназначен только для Стандартных холстов (до 3×2)! Для холста ${parsedWidth}×${parsedHeight} требуется токен «Великий холст Нирхаллы» (до 8×5).`
+            error: `Этот токен предназначен только для Стандартных холстов (до 6 блоков, например 3×2 или 2×3)! Для холста ${parsedWidth}×${parsedHeight} требуется токен «Великий холст Нирхаллы» (до 8×5 / 5×8).`
           }),
         };
       }

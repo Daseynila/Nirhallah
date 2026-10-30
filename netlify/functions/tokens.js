@@ -80,7 +80,7 @@ exports.handler = async (event, context) => {
 
       const tokenData = {
         token,
-        tier, // "standard" (<= 3x2) or "grand" (<= 8x5)
+        tier, // "standard" (<= 6 blocks) or "grand" (<= 40 blocks)
         targetPlayer,
         issuedBy,
         createdAt: Date.now()
@@ -103,7 +103,7 @@ exports.handler = async (event, context) => {
           type: "CREATE_TOKEN",
           username: issuedBy,
           ip: event.headers["client-ip"] || "127.0.0.1",
-          text: `${issuedBy} выпустил токен [${token}] (Тип: ${tier === "grand" ? "Великий 8х5" : "Стандарт 3х2"}, Игрок: ${targetPlayer})`
+          text: `${issuedBy} выпустил токен [${token}] (Тип: ${tier === "grand" ? "Великий (до 8×5 / 5×8)" : "Стандарт (до 6 блоков)"}, Игрок: ${targetPlayer})`
         });
         if (logs.length > 250) logs = logs.slice(0, 250);
         await store.setJSON("sys_audit_log", logs);
