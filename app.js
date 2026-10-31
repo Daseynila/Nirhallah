@@ -1272,7 +1272,8 @@ async function loadGallery(showSpinner = true) {
   let serverItems = [];
 
   try {
-    const res = await fetch('/api/list', {
+    const q = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : '';
+    const res = await fetch(`/api/list${q}`, {
       headers: {
         'X-Session-Token': sessionToken
       }

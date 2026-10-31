@@ -1,6 +1,7 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
 const crypto = require("crypto");
 
+global.__authSessions = global.__authSessions || new Map();
 global.__artCache = global.__artCache || new Map();
 global.__tokenCache = global.__tokenCache || new Map();
 
@@ -26,17 +27,43 @@ function getClientIP(event) {
 }
 
 async function verifyStaffSession(store, event, payload) {
-  const sessionToken = payload.sessionToken || event.headers["x-session-token"];
+  let sessionToken = payload.sessionToken;
+  if (!sessionToken && event.headers) {
+    for (const [k, v] of Object.entries(event.headers)) {
+      if (k.toLowerCase() === "x-session-token" || k.toLowerCase() === "session-token") {
+        sessionToken = v;
+        break;
+      }
+    }
+  }
+
   if (sessionToken) {
     if (global.__authSessions && global.__authSessions.has(sessionToken)) {
       return global.__authSessions.get(sessionToken);
     }
     try {
-      const s = await store.get("session_" + sessionToken, { type: "json" });
-      if (s) return s;
+      let s = await store.get("session_" + sessionToken, { type: "json" });
+      if (!s) {
+        const raw = await store.get("session_" + sessionToken, { type: "text" });
+        if (raw) s = JSON.parse(raw);
+      }
+      if (s) {
+        global.__authSessions.set(sessionToken, s);
+        return s;
+      }
     } catch (e) {}
   }
-  const pass = payload.modPassword || event.headers["x-mod-password"];
+
+  let pass = payload.modPassword;
+  if (!pass && event.headers) {
+    for (const [k, v] of Object.entries(event.headers)) {
+      if (k.toLowerCase() === "x-mod-password" || k.toLowerCase() === "mod-password") {
+        pass = v;
+        break;
+      }
+    }
+  }
+
   if (pass === MASTER_PASSWORD) {
     return { username: "Niral", role: "admin" };
   }

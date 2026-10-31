@@ -1,6 +1,7 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
 const crypto = require("crypto");
 
+global.__authSessions = global.__authSessions || new Map();
 global.__tokenCache = global.__tokenCache || new Map();
 
 const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || "NiralVelikiyPravitel07";

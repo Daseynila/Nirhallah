@@ -1,5 +1,6 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
 
+global.__authSessions = global.__authSessions || new Map();
 global.__artCache = global.__artCache || new Map();
 
 const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || "NiralVelikiyPravitel07";
@@ -16,21 +17,52 @@ function getSafeStore(event) {
 }
 
 async function getStaffSession(store, event) {
-  const sessionToken = event.headers["x-session-token"] || event.queryStringParameters?.sessionToken;
+  // Case-insensitive header check + query param fallback
+  let sessionToken = null;
+  if (event.headers) {
+    for (const [k, v] of Object.entries(event.headers)) {
+      if (k.toLowerCase() === "x-session-token" || k.toLowerCase() === "session-token") {
+        sessionToken = v;
+        break;
+      }
+    }
+  }
+  if (!sessionToken) {
+    sessionToken = event.queryStringParameters?.sessionToken;
+  }
+
   if (sessionToken) {
     if (global.__authSessions && global.__authSessions.has(sessionToken)) {
       return global.__authSessions.get(sessionToken);
     }
     try {
-      const s = await store.get("session_" + sessionToken, { type: "json" });
+      let s = await store.get("session_" + sessionToken, { type: "json" });
+      if (!s) {
+        const raw = await store.get("session_" + sessionToken, { type: "text" });
+        if (raw) s = JSON.parse(raw);
+      }
       if (s) {
         global.__authSessions.set(sessionToken, s);
         return s;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Session lookup error in Blobs:", e.message);
+    }
   }
 
-  const modPass = event.headers["x-mod-password"] || event.queryStringParameters?.password;
+  let modPass = null;
+  if (event.headers) {
+    for (const [k, v] of Object.entries(event.headers)) {
+      if (k.toLowerCase() === "x-mod-password" || k.toLowerCase() === "mod-password") {
+        modPass = v;
+        break;
+      }
+    }
+  }
+  if (!modPass) {
+    modPass = event.queryStringParameters?.password;
+  }
+
   if (modPass === MASTER_PASSWORD) {
     return { username: "Niral", role: "admin" };
   }
