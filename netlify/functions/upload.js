@@ -87,8 +87,14 @@ exports.handler = async (event, context) => {
 
     const store = getSafeStore(event);
 
-    // Compute digital fingerprint (hash) of image + dimensions
-    const hash = crypto.createHash("sha256").update(image + "_" + parsedWidth + "_" + parsedHeight).digest("hex").substring(0, 16);
+    // Verify staff credentials early to determine Admin test mode
+    const staffSession = await verifyStaffSession(store, event, payload);
+    const isStaff = Boolean(staffSession);
+    const isAdmin = Boolean(staffSession && staffSession.role === "admin");
+    const isHidden = Boolean(isAdmin && payload.isHidden);
+
+    // Compute digital fingerprint (hash) of image + dimensions + hidden flag
+    const hash = crypto.createHash("sha256").update(image + "_" + parsedWidth + "_" + parsedHeight + (isHidden ? "_hidden" : "")).digest("hex").substring(0, 16);
     const hashKey = "hash_" + hash;
 
     // 1. Check if identical artwork was already uploaded (Anti-spam / Duplicate prevention)
@@ -99,7 +105,7 @@ exports.handler = async (event, context) => {
 
     if (!existingCode && global.__artCache) {
       for (const [cd, item] of global.__artCache.entries()) {
-        if (!cd.startsWith("hash_") && !cd.startsWith("token_") && item.image === image && item.width === parsedWidth && item.height === parsedHeight) {
+        if (!cd.startsWith("hash_") && !cd.startsWith("token_") && item.image === image && item.width === parsedWidth && item.height === parsedHeight && Boolean(item.isHidden) === isHidden) {
           existingCode = cd;
           break;
         }
@@ -116,20 +122,20 @@ exports.handler = async (event, context) => {
           width: parsedWidth,
           height: parsedHeight,
           tier,
+          isHidden,
           isDuplicate: true,
           savedToBlobs: true,
-          message: "Этот холст уже был создан ранее! Используйте код ниже."
+          message: isHidden
+            ? "Этот скрытый тестовый холст уже был создан ранее! Используйте код ниже."
+            : "Этот холст уже был создан ранее! Используйте код ниже."
         }),
       };
     }
 
     // 2. 🎟️ TOKEN CHECK & AUDIT TRAIL RECORDING
-    const staffSession = await verifyStaffSession(store, event, payload);
-    const isStaff = Boolean(staffSession);
-
     let tokenMetadata = {
       targetPlayer: isStaff ? staffSession.username : "Не указан",
-      usedToken: isStaff ? "STAFF_BYPASS" : "",
+      usedToken: isStaff ? (isHidden ? "ADMIN_HIDDEN_TEST" : "STAFF_BYPASS") : "",
       tokenIssuedBy: isStaff ? staffSession.username : "Администрация"
     };
 
@@ -205,6 +211,7 @@ exports.handler = async (event, context) => {
       tier,
       title: cleanTitle,
       category: cleanCategory,
+      isHidden,
       // 🕵️ Moderator / Admin Audit Evidence:
       targetPlayer: tokenMetadata.targetPlayer,
       uploaderIP: clientIP,
@@ -222,7 +229,8 @@ exports.handler = async (event, context) => {
         metadata: {
           width: String(parsedWidth),
           height: String(parsedHeight),
-          tier
+          tier,
+          isHidden: String(isHidden)
         }
       });
       // Store hash pointer for instant duplicate lookup
@@ -243,10 +251,12 @@ exports.handler = async (event, context) => {
       logs.unshift({
         id: crypto.randomBytes(4).toString("hex"),
         timestamp: Date.now(),
-        type: "ART_UPLOAD",
+        type: isHidden ? "ADMIN_TEST_UPLOAD" : "ART_UPLOAD",
         username: tokenMetadata.targetPlayer,
         ip: clientIP,
-        text: `Игрок [${tokenMetadata.targetPlayer}] (IP: ${clientIP}) загрузил арт #${code} (${parsedWidth}×${parsedHeight} блока, ${tier === "grand" ? "Великий" : "Стандарт"}, токен: ${tokenMetadata.usedToken})`
+        text: isHidden
+          ? `Администратор [${tokenMetadata.targetPlayer}] (IP: ${clientIP}) создал СКРЫТЫЙ холст #${code} (${parsedWidth}×${parsedHeight} блока, только для тестов)`
+          : `Игрок [${tokenMetadata.targetPlayer}] (IP: ${clientIP}) загрузил арт #${code} (${parsedWidth}×${parsedHeight} блока, ${tier === "grand" ? "Великий" : "Стандарт"}, токен: ${tokenMetadata.usedToken})`
       });
       if (logs.length > 250) logs = logs.slice(0, 250);
       await store.setJSON("sys_audit_log", logs);
@@ -263,10 +273,13 @@ exports.handler = async (event, context) => {
         tier,
         title: cleanTitle,
         category: cleanCategory,
+        isHidden,
         isDuplicate: false,
         savedToBlobs,
         blobError: blobErrorMsg,
-        message: "Холст успешно загружен и готов к установке в Майнкрафте!"
+        message: isHidden
+          ? "Скрытый тестовый холст успешно создан! Он невидим для игроков и модераторов."
+          : "Холст успешно загружен и готов к установке в Майнкрафте!"
       }),
     };
   } catch (err) {

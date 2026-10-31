@@ -584,6 +584,9 @@ generateBtn.addEventListener('click', async () => {
 
   const session = getStoredSession();
   const sessionToken = session ? session.token : '';
+  const isAdmin = Boolean(session && session.role === 'admin');
+  const adminHiddenToggle = document.getElementById('adminHiddenToggle');
+  const isHidden = Boolean(isAdmin && adminHiddenToggle && adminHiddenToggle.checked);
 
   let code = null;
   let isDuplicate = false;
@@ -603,6 +606,7 @@ generateBtn.addEventListener('click', async () => {
         token: enteredToken,
         title,
         category,
+        isHidden,
         sessionToken
       })
     });
@@ -634,9 +638,15 @@ generateBtn.addEventListener('click', async () => {
     duplicateNotice.style.display = isDuplicate ? 'block' : 'none';
   }
   if (modalBadge) {
-    modalBadge.textContent = isDuplicate ? 'АРТ УЖЕ В БАЗЕ' : 'ГОТОВО К УСТАНОВКЕ';
-    modalBadge.style.background = isDuplicate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.2)';
-    modalBadge.style.color = isDuplicate ? '#93c5fd' : 'var(--accent-gold)';
+    if (isHidden) {
+      modalBadge.textContent = '🔒 СКРЫТЫЙ ТЕСТ';
+      modalBadge.style.background = 'rgba(147, 51, 234, 0.35)';
+      modalBadge.style.color = '#e9d5ff';
+    } else {
+      modalBadge.textContent = isDuplicate ? 'АРТ УЖЕ В БАЗЕ' : 'ГОТОВО К УСТАНОВКЕ';
+      modalBadge.style.background = isDuplicate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.2)';
+      modalBadge.style.color = isDuplicate ? '#93c5fd' : 'var(--accent-gold)';
+    }
   }
   if (modalCanvasReqText) {
     modalCanvasReqText.textContent = isGrand ? '«Великий холст Нирхаллы»' : '«Имперский чистый холст»';
@@ -703,17 +713,39 @@ function setStoredSession(session) {
 
 function updateStaffUI() {
   const session = getStoredSession();
+  const isAdmin = Boolean(session && session.role === 'admin');
+
+  // Admin Hidden option in upload form
+  const adminHiddenBox = document.getElementById('adminHiddenBox');
+  const adminHiddenToggle = document.getElementById('adminHiddenToggle');
+  if (adminHiddenBox) {
+    adminHiddenBox.style.display = isAdmin ? 'block' : 'none';
+    if (!isAdmin && adminHiddenToggle) adminHiddenToggle.checked = false;
+  }
+
+  // Admin Hidden category filter button in gallery
+  const adminHiddenFilterBtn = document.getElementById('adminHiddenFilterBtn');
+  if (adminHiddenFilterBtn) {
+    adminHiddenFilterBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (!isAdmin && typeof activeCategoryFilter !== 'undefined' && activeCategoryFilter === 'admin_hidden') {
+      activeCategoryFilter = 'all';
+      document.querySelectorAll('.cat-pill').forEach(p => {
+        if (p.dataset.cat === 'all') p.classList.add('active');
+        else p.classList.remove('active');
+      });
+    }
+  }
+
   if (session && session.token) {
     if (staffLoginBtn) staffLoginBtn.style.display = 'none';
     if (staffLoggedBox) staffLoggedBox.style.display = 'flex';
     if (staffUserPill) {
-      staffUserPill.textContent = `${session.role === 'admin' ? '👑' : '🛡️'} ${session.username}`;
+      staffUserPill.textContent = `${isAdmin ? '👑' : '🛡️'} ${session.username}`;
     }
     if (dashRoleBadge) {
-      dashRoleBadge.textContent = session.role === 'admin' ? 'Владелец Niral' : `Модератор ${session.username}`;
+      dashRoleBadge.textContent = isAdmin ? 'Владелец Niral' : `Модератор ${session.username}`;
     }
     // Show Admin tabs only for Niral
-    const isAdmin = (session.role === 'admin');
     if (tabDashMods) tabDashMods.style.display = isAdmin ? 'block' : 'none';
     if (tabDashAudit) tabDashAudit.style.display = isAdmin ? 'block' : 'none';
   } else {
@@ -1272,10 +1304,25 @@ async function loadGallery(showSpinner = true) {
     }
   }
 
+  const isAdmin = Boolean(session && session.role === 'admin');
+
   cachedGalleryItems = Array.from(localMap.values());
   cachedGalleryItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  galleryCountBadge.textContent = cachedGalleryItems.length;
+  const publicCount = cachedGalleryItems.filter(it => !it.isHidden).length;
+  galleryCountBadge.textContent = publicCount;
+
+  const adminHiddenFilterBtn = document.getElementById('adminHiddenFilterBtn');
+  if (adminHiddenFilterBtn) {
+    if (isAdmin) {
+      const hiddenCount = cachedGalleryItems.filter(it => it.isHidden).length;
+      adminHiddenFilterBtn.textContent = `🔒 Скрытые (${hiddenCount})`;
+      adminHiddenFilterBtn.style.display = 'inline-flex';
+    } else {
+      adminHiddenFilterBtn.style.display = 'none';
+    }
+  }
+
   galleryLoading.style.display = 'none';
   renderGalleryGrid();
 }
@@ -1296,12 +1343,25 @@ function renderGalleryGrid() {
   const query = (gallerySearchInput.value || '').trim().toLowerCase();
   const session = getStoredSession();
   const isStaff = Boolean(session && session.token);
+  const isAdmin = Boolean(session && session.role === 'admin');
 
   const filtered = cachedGalleryItems.filter(item => {
-    // Category match
-    if (activeCategoryFilter !== 'all') {
-      const itemCat = item.category || 'art';
-      if (itemCat !== activeCategoryFilter) return false;
+    // If item is marked as hidden:
+    if (item.isHidden) {
+      // Hidden items should ONLY be shown if the user is Admin AND has selected the 'admin_hidden' filter!
+      if (!isAdmin || activeCategoryFilter !== 'admin_hidden') {
+        return false;
+      }
+    } else {
+      // Normal items: if activeCategoryFilter is 'admin_hidden', do NOT show normal items
+      if (activeCategoryFilter === 'admin_hidden') {
+        return false;
+      }
+      // Category match for normal items
+      if (activeCategoryFilter !== 'all') {
+        const itemCat = item.category || 'art';
+        if (itemCat !== activeCategoryFilter) return false;
+      }
     }
 
     // Query match (code, title, author, targetPlayer)
@@ -1315,6 +1375,15 @@ function renderGalleryGrid() {
 
   if (filtered.length === 0) {
     galleryEmpty.style.display = 'block';
+    const h3 = galleryEmpty.querySelector('h3');
+    const p = galleryEmpty.querySelector('p');
+    if (activeCategoryFilter === 'admin_hidden') {
+      if (h3) h3.textContent = 'Нет скрытых тестовых картин';
+      if (p) p.textContent = 'При публикации включите тумблер «Скрыть холст от галереи», и картина появится здесь.';
+    } else {
+      if (h3) h3.textContent = 'В этой категории пока нет картин';
+      if (p) p.textContent = 'Перейдите во вкладку «Создать холст» и загрузите первую работу!';
+    }
     galleryGrid.style.display = 'none';
     return;
   }
@@ -1358,6 +1427,8 @@ function renderGalleryGrid() {
       `;
     }
 
+    const hiddenBadgeHtml = item.isHidden ? `<span class="art-card-tier-badge hidden-badge">🔒 Скрытый тест</span>` : '';
+
     card.innerHTML = `
       <div class="art-card-thumb-wrap">
         <img class="art-card-thumb" src="${thumbSrc}" alt="Холст #${item.code}" loading="lazy">
@@ -1365,7 +1436,12 @@ function renderGalleryGrid() {
       <div class="art-card-body">
         <div class="art-card-header">
           <span class="art-card-code">#${item.code}</span>
-          <div style="display: flex; gap: 0.35rem; align-items: center;">
+          <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+            ${hiddenBadgeHtml}
+            <span class="art-card-category-tag">${catName}</span>
+            <span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий' : '🖼️ Стандарт'}</span>
+          </div>
+        </div>
             <span class="art-card-category-tag">${catName}</span>
             <span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий' : '🖼️ Стандарт'}</span>
           </div>

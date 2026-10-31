@@ -208,6 +208,16 @@
               <span class="toggle-slider"></span>
               <span class="toggle-label">Показывать сетку блоков на стене</span>
             </label>
+
+            <!-- 👑 ТОЛЬКО ДЛЯ АДМИНИСТРАТОРА (Niral): Тестовый скрытый режим -->
+            <div class="admin-hidden-option mt-3" id="adminHiddenBox" style="display: none;">
+              <label class="toggle-control admin-toggle">
+                <input type="checkbox" id="adminHiddenToggle">
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">🔒 Скрыть холст от галереи (Тестовый режим Администратора)</span>
+              </label>
+              <p class="field-hint">Картина сохранится на сервере, но не появится в общей галерее игроков и модераторов. Код для Майнкрафта будет работать нормально для ваших тестов.</p>
+            </div>
           </div>
 
           <h2 class="card-title mt-4">6. Токен загрузки (Право автора)</h2>
@@ -291,6 +301,7 @@
         <button class="cat-pill" data-cat="memes">😂 Мемы</button>
         <button class="cat-pill" data-cat="art">🎨 Арт</button>
         <button class="cat-pill" data-cat="interior">🪧 Интерьер</button>
+        <button class="cat-pill cat-pill-admin-hidden" id="adminHiddenFilterBtn" data-cat="admin_hidden" style="display: none;">🔒 Скрытые (Тесты)</button>
       </div>
 
       <div class="gallery-loading" id="galleryLoading" style="display: none;">

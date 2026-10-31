@@ -15,22 +15,27 @@ function getSafeStore(event) {
   return getStore("nirhalla-art-cache");
 }
 
-async function isStaffAuthenticated(store, event) {
+async function getStaffSession(store, event) {
   const sessionToken = event.headers["x-session-token"] || event.queryStringParameters?.sessionToken;
   if (sessionToken) {
     if (global.__authSessions && global.__authSessions.has(sessionToken)) {
-      return true;
+      return global.__authSessions.get(sessionToken);
     }
     try {
       const s = await store.get("session_" + sessionToken, { type: "json" });
-      if (s) return true;
+      if (s) {
+        global.__authSessions.set(sessionToken, s);
+        return s;
+      }
     } catch (e) {}
   }
 
   const modPass = event.headers["x-mod-password"] || event.queryStringParameters?.password;
-  if (modPass === MASTER_PASSWORD) return true;
+  if (modPass === MASTER_PASSWORD) {
+    return { username: "Niral", role: "admin" };
+  }
 
-  return false;
+  return null;
 }
 
 exports.handler = async (event, context) => {
@@ -51,7 +56,9 @@ exports.handler = async (event, context) => {
   let blobError = null;
   try {
     const store = getSafeStore(event);
-    const isStaff = await isStaffAuthenticated(store, event);
+    const staffSession = await getStaffSession(store, event);
+    const isStaff = Boolean(staffSession);
+    const isAdmin = Boolean(staffSession && staffSession.role === "admin");
 
     const items = [];
 
@@ -76,6 +83,13 @@ exports.handler = async (event, context) => {
             const data = await store.get(b.key, { type: "json" });
             if (!data) return null;
 
+            const isHidden = Boolean(data.isHidden);
+            // 🔒 HIDDEN FILTER: Hidden test artworks are ONLY accessible to verified Admin!
+            // Non-staff and regular moderators CANNOT see them.
+            if (isHidden && !isAdmin) {
+              return null;
+            }
+
             const code = data.code || b.key;
             const width = data.width || 1;
             const height = data.height || 1;
@@ -88,6 +102,7 @@ exports.handler = async (event, context) => {
               tier: isGrand ? "grand" : "standard",
               title: data.title || `Холст #${code}`,
               category: data.category || "art",
+              isHidden,
               createdAt: data.createdAt || b.uploadedAt || Date.now(),
               imageUrl: `/api/get?code=${code}&format=png`
             };
@@ -129,6 +144,9 @@ exports.handler = async (event, context) => {
           continue;
         }
 
+        const isHidden = Boolean(data.isHidden);
+        if (isHidden && !isAdmin) continue;
+
         const width = data.width || 1;
         const height = data.height || 1;
         const isGrand = data.tier === "grand" || width > 3 || height > 3 || (width * height > 6);
@@ -140,6 +158,7 @@ exports.handler = async (event, context) => {
           tier: isGrand ? "grand" : "standard",
           title: data.title || `Холст #${code}`,
           category: data.category || "art",
+          isHidden,
           createdAt: data.createdAt || Date.now(),
           imageUrl: `/api/get?code=${code}&format=png`
         };
@@ -167,6 +186,7 @@ exports.handler = async (event, context) => {
         success: true,
         count: items.length,
         isStaff,
+        isAdmin,
         items
       }),
     };
