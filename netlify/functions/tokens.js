@@ -17,15 +17,53 @@ function getSafeStore(event) {
   return getStore("nirhalla-art-cache");
 }
 
+function verifySignedStaffToken(sessionToken) {
+  if (!sessionToken || typeof sessionToken !== "string") return null;
+  const parts = sessionToken.split("_");
+  if (parts.length >= 3) {
+    const prefix = parts[0];
+    const username = parts[1];
+    const sig = parts.slice(2).join("_");
+    if (prefix === "adm" || prefix === "mod") {
+      const role = (prefix === "adm") ? "admin" : "moderator";
+      const expected = crypto.createHmac("sha256", MASTER_PASSWORD).update(`${username}:${role}`).digest("hex");
+      if (sig === expected) {
+        return { username, role, token: sessionToken };
+      }
+    }
+  }
+  return null;
+}
+
 async function verifyAuth(store, event, payload) {
-  const sessionToken = payload.sessionToken || event.headers["x-session-token"];
+  let sessionToken = payload.sessionToken;
+  if (!sessionToken && event.headers) {
+    for (const [k, v] of Object.entries(event.headers)) {
+      if (k.toLowerCase() === "x-session-token" || k.toLowerCase() === "session-token") {
+        sessionToken = v;
+        break;
+      }
+    }
+  }
+
+  // 1. Instant HMAC cryptographic verification
+  const signed = verifySignedStaffToken(sessionToken);
+  if (signed) {
+    if (global.__authSessions) global.__authSessions.set(sessionToken, signed);
+    return signed;
+  }
+
+  // 2. Memory check
   if (sessionToken) {
     if (global.__authSessions && global.__authSessions.has(sessionToken)) {
       return global.__authSessions.get(sessionToken);
     }
     try {
       const s = await store.get("session_" + sessionToken, { type: "json" });
-      if (s) return s;
+      if (s) {
+        if (global.__authSessions) global.__authSessions.set(sessionToken, s);
+        return s;
+      }
     } catch (e) {}
   }
 

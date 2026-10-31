@@ -26,6 +26,24 @@ function getClientIP(event) {
   return event.headers["client-ip"] || "127.0.0.1";
 }
 
+function verifySignedStaffToken(sessionToken) {
+  if (!sessionToken || typeof sessionToken !== "string") return null;
+  const parts = sessionToken.split("_");
+  if (parts.length >= 3) {
+    const prefix = parts[0];
+    const username = parts[1];
+    const sig = parts.slice(2).join("_");
+    if (prefix === "adm" || prefix === "mod") {
+      const role = (prefix === "adm") ? "admin" : "moderator";
+      const expected = crypto.createHmac("sha256", MASTER_PASSWORD).update(`${username}:${role}`).digest("hex");
+      if (sig === expected) {
+        return { username, role, token: sessionToken };
+      }
+    }
+  }
+  return null;
+}
+
 async function verifyStaffSession(store, event, payload) {
   let sessionToken = payload.sessionToken;
   if (!sessionToken && event.headers) {
@@ -37,10 +55,20 @@ async function verifyStaffSession(store, event, payload) {
     }
   }
 
+  // 1. Instant HMAC cryptographic verification
+  const signed = verifySignedStaffToken(sessionToken);
+  if (signed) {
+    if (global.__authSessions) global.__authSessions.set(sessionToken, signed);
+    return signed;
+  }
+
+  // 2. Memory check
+  if (sessionToken && global.__authSessions && global.__authSessions.has(sessionToken)) {
+    return global.__authSessions.get(sessionToken);
+  }
+
+  // 3. Blobs check
   if (sessionToken) {
-    if (global.__authSessions && global.__authSessions.has(sessionToken)) {
-      return global.__authSessions.get(sessionToken);
-    }
     try {
       let s = await store.get("session_" + sessionToken, { type: "json" });
       if (!s) {
@@ -48,7 +76,7 @@ async function verifyStaffSession(store, event, payload) {
         if (raw) s = JSON.parse(raw);
       }
       if (s) {
-        global.__authSessions.set(sessionToken, s);
+        if (global.__authSessions) global.__authSessions.set(sessionToken, s);
         return s;
       }
     } catch (e) {}

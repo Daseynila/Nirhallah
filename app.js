@@ -1443,10 +1443,6 @@ function renderGalleryGrid() {
             <span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий' : '🖼️ Стандарт'}</span>
           </div>
         </div>
-            <span class="art-card-category-tag">${catName}</span>
-            <span class="art-card-tier-badge ${isGrand ? 'grand' : 'standard'}">${isGrand ? '👑 Великий' : '🖼️ Стандарт'}</span>
-          </div>
-        </div>
         <div class="art-card-title">${escapeHtml(item.title || `Холст #${item.code}`)}</div>
         <div class="art-card-meta">
           <span>${item.width} × ${item.height} блока (${item.width * item.height} карт)</span>

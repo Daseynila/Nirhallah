@@ -1,4 +1,5 @@
 const { getStore, connectLambda } = require("@netlify/blobs");
+const crypto = require("crypto");
 
 global.__authSessions = global.__authSessions || new Map();
 global.__artCache = global.__artCache || new Map();
@@ -16,7 +17,25 @@ function getSafeStore(event) {
   return getStore("nirhalla-art-cache");
 }
 
-async function getStaffSession(store, event, debugObj = {}) {
+function verifySignedStaffToken(sessionToken) {
+  if (!sessionToken || typeof sessionToken !== "string") return null;
+  const parts = sessionToken.split("_");
+  if (parts.length >= 3) {
+    const prefix = parts[0];
+    const username = parts[1];
+    const sig = parts.slice(2).join("_");
+    if (prefix === "adm" || prefix === "mod") {
+      const role = (prefix === "adm") ? "admin" : "moderator";
+      const expected = crypto.createHmac("sha256", MASTER_PASSWORD).update(`${username}:${role}`).digest("hex");
+      if (sig === expected) {
+        return { username, role, token: sessionToken };
+      }
+    }
+  }
+  return null;
+}
+
+async function getStaffSession(store, event) {
   // Case-insensitive header check + query param fallback
   let sessionToken = null;
   if (event.headers) {
@@ -31,27 +50,31 @@ async function getStaffSession(store, event, debugObj = {}) {
     sessionToken = event.queryStringParameters.sessionToken || event.queryStringParameters.token;
   }
 
-  debugObj.extractedToken = sessionToken;
+  // 1. Instant HMAC cryptographic verification (cross-lambda safe, zero latency)
+  const signed = verifySignedStaffToken(sessionToken);
+  if (signed) {
+    if (global.__authSessions) global.__authSessions.set(sessionToken, signed);
+    return signed;
+  }
 
+  // 2. Memory cache check
+  if (sessionToken && global.__authSessions && global.__authSessions.has(sessionToken)) {
+    return global.__authSessions.get(sessionToken);
+  }
+
+  // 3. Netlify Blobs lookup (for legacy random tokens)
   if (sessionToken) {
-    if (global.__authSessions && global.__authSessions.has(sessionToken)) {
-      debugObj.fromMemory = true;
-      return global.__authSessions.get(sessionToken);
-    }
     try {
       let s = await store.get("session_" + sessionToken, { type: "json" });
-      debugObj.blobJsonResult = s;
       if (!s) {
         const raw = await store.get("session_" + sessionToken, { type: "text" });
-        debugObj.blobRawResult = raw;
         if (raw) s = JSON.parse(raw);
       }
       if (s) {
-        global.__authSessions.set(sessionToken, s);
+        if (global.__authSessions) global.__authSessions.set(sessionToken, s);
         return s;
       }
     } catch (e) {
-      debugObj.blobLookupError = e.message;
       console.warn("Session lookup error in Blobs:", e.message);
     }
   }
@@ -94,8 +117,7 @@ exports.handler = async (event, context) => {
   let blobError = null;
   try {
     const store = getSafeStore(event);
-    const debugObj = {};
-    const staffSession = await getStaffSession(store, event, debugObj);
+    const staffSession = await getStaffSession(store, event);
     const isStaff = Boolean(staffSession);
     const isAdmin = Boolean(staffSession && staffSession.role === "admin");
 
@@ -105,7 +127,6 @@ exports.handler = async (event, context) => {
     try {
       const rawList = await store.list();
       const blobs = rawList.blobs || [];
-      debugObj.sessionBlobs = blobs.filter(b => b.key.startsWith("session_")).map(b => b.key);
 
       // Filter only art blobs
       const artBlobs = blobs.filter(b => 
@@ -227,13 +248,6 @@ exports.handler = async (event, context) => {
         count: items.length,
         isStaff,
         isAdmin,
-        debug: {
-          staffSessionFound: Boolean(staffSession),
-          staffSession,
-          debugObj,
-          queryParam: event.queryStringParameters?.sessionToken,
-          headerTokens: [event.headers["x-session-token"], event.headers["X-Session-Token"]].filter(Boolean)
-        },
         items
       }),
     };

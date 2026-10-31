@@ -51,13 +51,40 @@ async function addAuditLog(store, entry) {
   }
 }
 
+function verifySignedStaffToken(sessionToken) {
+  if (!sessionToken || typeof sessionToken !== "string") return null;
+  const parts = sessionToken.split("_");
+  if (parts.length >= 3) {
+    const prefix = parts[0];
+    const username = parts[1];
+    const sig = parts.slice(2).join("_");
+    if (prefix === "adm" || prefix === "mod") {
+      const role = (prefix === "adm") ? "admin" : "moderator";
+      const expected = crypto.createHmac("sha256", MASTER_ADMIN.password).update(`${username}:${role}`).digest("hex");
+      if (sig === expected) {
+        return { username, role, token: sessionToken };
+      }
+    }
+  }
+  return null;
+}
+
 async function getSession(store, sessionToken) {
   if (!sessionToken) return null;
-  // Check memory first
+
+  // 1. Instant HMAC cryptographic verification (cross-lambda safe, zero latency)
+  const signed = verifySignedStaffToken(sessionToken);
+  if (signed) {
+    if (global.__authSessions) global.__authSessions.set(sessionToken, signed);
+    return signed;
+  }
+
+  // 2. Check memory
   if (global.__authSessions.has(sessionToken)) {
     return global.__authSessions.get(sessionToken);
   }
-  // Check Blobs
+
+  // 3. Check Blobs
   try {
     const s = await store.get("session_" + sessionToken, { type: "json" });
     if (s) {
@@ -112,7 +139,8 @@ exports.handler = async (event, context) => {
           return { statusCode: 403, headers, body: JSON.stringify({ error: "Неверный пароль администратора!" }) };
         }
 
-        const sessionToken = "adm_" + crypto.randomBytes(20).toString("hex");
+        const adminSig = crypto.createHmac("sha256", MASTER_ADMIN.password).update("Niral:admin").digest("hex");
+        const sessionToken = `adm_Niral_${adminSig}`;
         const sessionData = {
           token: sessionToken,
           username: "Niral",
@@ -198,7 +226,8 @@ exports.handler = async (event, context) => {
       modData.lastIP = clientIP;
       await store.setJSON(modKey, modData);
 
-      const sessionToken = "mod_" + crypto.randomBytes(20).toString("hex");
+      const modSig = crypto.createHmac("sha256", MASTER_ADMIN.password).update(`${modData.username}:moderator`).digest("hex");
+      const sessionToken = `mod_${modData.username}_${modSig}`;
       const sessionData = {
         token: sessionToken,
         username: modData.username,
