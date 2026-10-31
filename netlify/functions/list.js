@@ -16,7 +16,7 @@ function getSafeStore(event) {
   return getStore("nirhalla-art-cache");
 }
 
-async function getStaffSession(store, event) {
+async function getStaffSession(store, event, debugObj = {}) {
   // Case-insensitive header check + query param fallback
   let sessionToken = null;
   if (event.headers) {
@@ -27,18 +27,23 @@ async function getStaffSession(store, event) {
       }
     }
   }
-  if (!sessionToken) {
-    sessionToken = event.queryStringParameters?.sessionToken;
+  if (!sessionToken && event.queryStringParameters) {
+    sessionToken = event.queryStringParameters.sessionToken || event.queryStringParameters.token;
   }
+
+  debugObj.extractedToken = sessionToken;
 
   if (sessionToken) {
     if (global.__authSessions && global.__authSessions.has(sessionToken)) {
+      debugObj.fromMemory = true;
       return global.__authSessions.get(sessionToken);
     }
     try {
       let s = await store.get("session_" + sessionToken, { type: "json" });
+      debugObj.blobJsonResult = s;
       if (!s) {
         const raw = await store.get("session_" + sessionToken, { type: "text" });
+        debugObj.blobRawResult = raw;
         if (raw) s = JSON.parse(raw);
       }
       if (s) {
@@ -46,6 +51,7 @@ async function getStaffSession(store, event) {
         return s;
       }
     } catch (e) {
+      debugObj.blobLookupError = e.message;
       console.warn("Session lookup error in Blobs:", e.message);
     }
   }
@@ -59,8 +65,8 @@ async function getStaffSession(store, event) {
       }
     }
   }
-  if (!modPass) {
-    modPass = event.queryStringParameters?.password;
+  if (!modPass && event.queryStringParameters) {
+    modPass = event.queryStringParameters.password;
   }
 
   if (modPass === MASTER_PASSWORD) {
@@ -88,7 +94,8 @@ exports.handler = async (event, context) => {
   let blobError = null;
   try {
     const store = getSafeStore(event);
-    const staffSession = await getStaffSession(store, event);
+    const debugObj = {};
+    const staffSession = await getStaffSession(store, event, debugObj);
     const isStaff = Boolean(staffSession);
     const isAdmin = Boolean(staffSession && staffSession.role === "admin");
 
@@ -98,6 +105,7 @@ exports.handler = async (event, context) => {
     try {
       const rawList = await store.list();
       const blobs = rawList.blobs || [];
+      debugObj.sessionBlobs = blobs.filter(b => b.key.startsWith("session_")).map(b => b.key);
 
       // Filter only art blobs
       const artBlobs = blobs.filter(b => 
@@ -219,6 +227,13 @@ exports.handler = async (event, context) => {
         count: items.length,
         isStaff,
         isAdmin,
+        debug: {
+          staffSessionFound: Boolean(staffSession),
+          staffSession,
+          debugObj,
+          queryParam: event.queryStringParameters?.sessionToken,
+          headerTokens: [event.headers["x-session-token"], event.headers["X-Session-Token"]].filter(Boolean)
+        },
         items
       }),
     };
