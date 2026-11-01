@@ -1,0 +1,6 @@
+name = "nirhallah"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "ART_KV"
+id = "57e0289f6e41446fa8bec6f73270a4b9"
