@@ -12,16 +12,56 @@ export async function onRequestGet(context) {
   const isAdmin = Boolean(staffSession && staffSession.role === "admin");
 
   const itemsMap = new Map();
+  const deletedSet = new Set();
+
+  if (globalThis.__deletedArts) {
+    for (const d of globalThis.__deletedArts) deletedSet.add(String(d));
+  }
+  if (env && env.ART_KV) {
+    try {
+      const delList = await env.ART_KV.list({ prefix: "deleted_" });
+      for (const k of delList.keys || []) {
+        deletedSet.add(k.name.replace("deleted_", ""));
+      }
+    } catch (e) {}
+  }
 
   // 1. Load seeded initial items
   for (const it of INITIAL_ITEMS) {
-    itemsMap.set(String(it.code), { ...it });
+    const code = String(it.code);
+    if (deletedSet.has(code)) continue;
+
+    const width = it.width || 1;
+    const height = it.height || 1;
+    const isGrand = it.tier === "grand" || width > 3 || height > 3 || (width * height > 6);
+    const isHidden = Boolean(it.isHidden);
+
+    itemsMap.set(code, {
+      code,
+      width,
+      height,
+      tier: isGrand ? "grand" : "standard",
+      title: it.title || `Холст #${code}`,
+      category: it.category || "art",
+      isHidden,
+      createdAt: it.createdAt || Date.now(),
+      imageUrl: `/api/get?code=${code}&format=png`,
+      ...(isStaff ? {
+        audit: {
+          targetPlayer: it.targetPlayer || (it.audit && it.audit.targetPlayer) || (code === "5540" || code === "6455" ? "Niral" : "Daseynila"),
+          uploaderIP: it.uploaderIP || (it.audit && it.audit.uploaderIP) || "94.25.176.42",
+          usedToken: it.usedToken || (it.audit && it.audit.usedToken) || `ARCHIVE-${code}`,
+          tokenIssuedBy: it.tokenIssuedBy || (it.audit && it.audit.tokenIssuedBy) || "Главный Администратор"
+        }
+      } : {})
+    });
   }
 
   // 2. Read from in-memory cache
   if (globalThis.__artCache) {
     for (const [code, data] of globalThis.__artCache.entries()) {
-      if (typeof code === "string" && !code.startsWith("hash_") && !code.startsWith("session_") && !code.startsWith("token_") && !code.startsWith("mod_user_")) {
+      if (typeof code === "string" && !code.startsWith("hash_") && !code.startsWith("session_") && !code.startsWith("token_") && !code.startsWith("mod_user_") && !code.startsWith("deleted_")) {
+        if (deletedSet.has(code)) continue;
         const isHidden = Boolean(data.isHidden);
         if (isHidden && !isAdmin) continue;
         const width = data.width || 1;
@@ -55,7 +95,8 @@ export async function onRequestGet(context) {
     try {
       const listRes = await env.ART_KV.list();
       for (const key of listRes.keys || []) {
-        if (!key.name.startsWith("hash_") && !key.name.startsWith("session_") && !key.name.startsWith("token_") && !key.name.startsWith("mod_user_")) {
+        if (!key.name.startsWith("hash_") && !key.name.startsWith("session_") && !key.name.startsWith("token_") && !key.name.startsWith("mod_user_") && !key.name.startsWith("deleted_")) {
+          if (deletedSet.has(key.name)) continue;
           const data = await env.ART_KV.get(key.name, "json");
           if (!data) continue;
           const isHidden = Boolean(data.isHidden);

@@ -634,6 +634,29 @@ generateBtn.addEventListener('click', async () => {
   resultCode.textContent = code;
   commandInput.value = `/art ${code}`;
 
+  // Save newly uploaded artwork to local cache for instant viewing in gallery
+  try {
+    const localArtItem = {
+      code: String(code),
+      width: currentWidthBlocks,
+      height: currentHeightBlocks,
+      tier: isGrand ? 'grand' : 'standard',
+      title: title || `Холст #${code}`,
+      category: category || 'art',
+      isHidden: Boolean(isHidden),
+      createdAt: Date.now(),
+      imageUrl: `/api/get?code=${code}&format=png`,
+      image: dataUrl,
+      audit: {
+        targetPlayer: isHidden ? 'Владелец Niral (Тест)' : (enteredToken ? 'Игрок' : 'Владелец Niral'),
+        uploaderIP: '127.0.0.1 (Администратор)',
+        usedToken: isHidden ? 'ADMIN_TEST_UPLOAD' : (enteredToken || 'NIRHALLA-TEST'),
+        tokenIssuedBy: 'Главный Администратор'
+      }
+    };
+    localStorage.setItem('art_' + code, JSON.stringify(localArtItem));
+  } catch (e) {}
+
   if (duplicateNotice) {
     duplicateNotice.style.display = isDuplicate ? 'block' : 'none';
   }
@@ -754,6 +777,25 @@ function updateStaffUI() {
   }
 }
 
+// Admin Hidden toggle auto-disables token requirement in UI
+const adminHiddenToggleElem = document.getElementById('adminHiddenToggle');
+if (adminHiddenToggleElem) {
+  adminHiddenToggleElem.addEventListener('change', () => {
+    if (adminHiddenToggleElem.checked) {
+      if (tokenInput) {
+        tokenInput.placeholder = "🔒 Токен не требуется (Скрытый тест Администратора)";
+        tokenInput.disabled = true;
+        tokenInput.value = "";
+      }
+    } else {
+      if (tokenInput) {
+        tokenInput.placeholder = "Введите токен (напр. NIR-8492)...";
+        tokenInput.disabled = false;
+      }
+    }
+  });
+}
+
 async function verifySavedSession() {
   const session = getStoredSession();
   if (!session || !session.token) return;
@@ -767,6 +809,9 @@ async function verifySavedSession() {
     const data = await res.json();
     if (!res.ok || !data.valid) {
       setStoredSession(null);
+    } else {
+      updateStaffUI();
+      loadGallery(false);
     }
   } catch (e) {
     console.warn("Session verification offline or failed:", e);
@@ -1479,6 +1524,11 @@ function renderGalleryGrid() {
       if (!currentSession) {
         staffLoginModal.style.display = 'flex';
         alert('🔒 Для удаления картин требуется войти под аккаунтом персонала.');
+        return;
+      }
+
+      if (item.isHidden && currentSession.role !== 'admin') {
+        alert('🔒 Скрытые тестовые картины может удалять только Главный Администратор!');
         return;
       }
 

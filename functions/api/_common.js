@@ -4,6 +4,7 @@ export const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, X-Session-Token, X-Mod-Password",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Expose-Headers": "X-Art-Width, X-Art-Height, X-Art-Tier",
 };
 
 export function handleOptions() {
@@ -48,11 +49,14 @@ export async function verifySignedStaffToken(sessionToken) {
   return null;
 }
 
-export async function getStaffSession(context) {
+export async function getStaffSession(context, payload = null) {
   const { request, env } = context;
   const url = new URL(request.url);
 
   let sessionToken = request.headers.get("x-session-token") || request.headers.get("session-token");
+  if (!sessionToken && payload && payload.sessionToken) {
+    sessionToken = payload.sessionToken;
+  }
   if (!sessionToken) {
     sessionToken = url.searchParams.get("sessionToken") || url.searchParams.get("token");
   }
@@ -73,6 +77,9 @@ export async function getStaffSession(context) {
 
   // 3. Fallback mod password
   let modPass = request.headers.get("x-mod-password") || request.headers.get("mod-password");
+  if (!modPass && payload && payload.modPassword) {
+    modPass = payload.modPassword;
+  }
   if (!modPass) modPass = url.searchParams.get("password");
   if (modPass === MASTER_PASSWORD) {
     return { username: "Niral", role: "admin" };

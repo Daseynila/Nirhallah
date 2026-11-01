@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
     const isGrandSize = (parsedWidth > 3 || parsedHeight > 3 || (parsedWidth * parsedHeight > 6));
     const tier = isGrandSize ? "grand" : "standard";
 
-    const staffSession = await getStaffSession(context);
+    const staffSession = await getStaffSession(context, payload);
     const isAdmin = Boolean(staffSession && staffSession.role === "admin");
 
     // 🔒 Admin hidden testing toggle:

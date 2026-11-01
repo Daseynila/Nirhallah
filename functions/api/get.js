@@ -43,6 +43,30 @@ export async function onRequestGet(context) {
     });
   }
 
+  const width = artData.width || 1;
+  const height = artData.height || 1;
+  const isGrand = artData.tier === "grand" || width > 3 || height > 3 || (width * height > 6);
+  const tier = isGrand ? "grand" : "standard";
+
+  const format = (url.searchParams.get("format") || "").toLowerCase();
+  if (format === "json") {
+    return new Response(JSON.stringify({
+      success: true,
+      code: artData.code || code,
+      width,
+      height,
+      tier,
+      title: artData.title || `Холст #${code}`,
+      category: artData.category || "art",
+      isHidden: Boolean(artData.isHidden),
+      image: artData.image,
+      createdAt: artData.createdAt || Date.now()
+    }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
+    });
+  }
+
   // Extract base64 and stream binary PNG
   try {
     let base64Data = artData.image;
@@ -61,6 +85,10 @@ export async function onRequestGet(context) {
       headers: {
         ...CORS_HEADERS,
         "Content-Type": "image/png",
+        "X-Art-Width": String(width),
+        "X-Art-Height": String(height),
+        "X-Art-Tier": tier,
+        "Access-Control-Expose-Headers": "X-Art-Width, X-Art-Height, X-Art-Tier",
         "Cache-Control": "public, max-age=3600"
       }
     });

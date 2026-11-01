@@ -38,6 +38,15 @@ export async function onRequestPost(context) {
     return jsonResponse({ success: true, token, tokenData });
   }
 
+  if (action === "delete") {
+    const cleanToken = (payload.token || "").trim().toUpperCase();
+    if (globalThis.__tokenCache) globalThis.__tokenCache.delete(cleanToken);
+    if (env && env.ART_KV) {
+      try { await env.ART_KV.delete("token_" + cleanToken); } catch (e) {}
+    }
+    return jsonResponse({ success: true, message: `Токен ${cleanToken} успешно отозван` });
+  }
+
   if (action === "list") {
     const tokens = Array.from(globalThis.__tokenCache.values());
     if (env && env.ART_KV) {
