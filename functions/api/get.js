@@ -17,6 +17,15 @@ export async function onRequestGet(context) {
     });
   }
 
+  // 0. Check Cloudflare Edge Cache
+  try {
+    const cache = caches.default;
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+  } catch (e) {}
+
   let artData = null;
 
   // 1. Check Cloudflare KV if configured

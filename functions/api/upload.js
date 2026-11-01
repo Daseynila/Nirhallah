@@ -110,6 +110,41 @@ export async function onRequestPost(context) {
       } catch (e) {}
     }
 
+    // Cache on Cloudflare Edge for instant Minecraft server download
+    try {
+      const cache = caches.default;
+      const getUrl = new URL(`/api/get?code=${code}&format=png`, request.url);
+      const cacheHeaders = {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "image/png",
+        "X-Art-Width": String(parsedWidth),
+        "X-Art-Height": String(parsedHeight),
+        "X-Art-Tier": tier,
+        "Access-Control-Expose-Headers": "X-Art-Width, X-Art-Height, X-Art-Tier",
+        "Cache-Control": "public, max-age=31536000",
+      };
+
+      let b64 = image;
+      if (b64.includes(",")) b64 = b64.split(",")[1];
+      const binaryStr = atob(b64);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+      const cachedPng = new Response(bytes.buffer, {
+        status: 200,
+        headers: cacheHeaders
+      });
+
+      if (context.waitUntil) {
+        context.waitUntil(cache.put(getUrl.toString(), cachedPng));
+      } else {
+        await cache.put(getUrl.toString(), cachedPng);
+      }
+    } catch (cacheErr) {
+      console.warn("Edge cache put error:", cacheErr.message);
+    }
+
     return jsonResponse({
       success: true,
       code,

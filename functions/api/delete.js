@@ -53,5 +53,15 @@ export async function onRequest(context) {
     } catch (e) {}
   }
 
+  try {
+    const cache = caches.default;
+    const getUrl = new URL(`/api/get?code=${code}&format=png`, request.url);
+    if (context.waitUntil) {
+      context.waitUntil(cache.delete(getUrl.toString()));
+    } else {
+      await cache.delete(getUrl.toString());
+    }
+  } catch (e) {}
+
   return jsonResponse({ success: true, message: `Холст #${code} успешно удален!` });
 }
