@@ -33,6 +33,9 @@ let currentWidthBlocks = 1;
 let currentHeightBlocks = 1;
 let currentTier = "standard";
 let currentFitMode = "cover"; // 'cover' (default: smart edge crop, NO distortion), 'contain', 'stretch'
+let currentDitherStrength = 0.40; // 0.0 (clean lines) to 1.0 (smooth photo), default 40% for anime/art
+let isSharpenEnabled = true;       // Unsharp Mask pre-sharpening
+let isAlphaCleanEnabled = true;    // Clean alpha edges for PNGs without background
 let activeCategoryFilter = "all";
 let cachedGalleryItems = [];
 
@@ -44,6 +47,11 @@ const fitSelector = document.getElementById('fitSelector');
 const artTitleInput = document.getElementById('artTitleInput');
 const artCategorySelect = document.getElementById('artCategorySelect');
 const ditherToggle = document.getElementById('ditherToggle');
+const ditherStrengthInput = document.getElementById('ditherStrength');
+const ditherStrengthVal = document.getElementById('ditherStrengthVal');
+const stylePresets = document.getElementById('stylePresets');
+const sharpenToggle = document.getElementById('sharpenToggle');
+const alphaCleanToggle = document.getElementById('alphaCleanToggle');
 const gridToggle = document.getElementById('gridToggle');
 const tokenInput = document.getElementById('tokenInput');
 const generateBtn = document.getElementById('generateBtn');
@@ -330,12 +338,24 @@ function selectBestSizeForImage(img, orient) {
 
 function updateSizeInfo() {
   const isGrand = (currentTier === "grand" || currentWidthBlocks > 3 || currentHeightBlocks > 3 || (currentWidthBlocks * currentHeightBlocks > 6));
-  
+  const wPixels = currentWidthBlocks * 128;
+  const hPixels = currentHeightBlocks * 128;
+  const totalPixels = wPixels * hPixels;
+
+  let qualityBadge = "Иконка";
+  if (totalPixels >= 1024 * 640 || currentWidthBlocks >= 6 || currentHeightBlocks >= 6) {
+    qualityBadge = "★ HD Качество";
+  } else if (totalPixels >= 512 * 384 || currentWidthBlocks >= 4 || currentHeightBlocks >= 4) {
+    qualityBadge = "Высокая детализация";
+  } else if (totalPixels >= 256 * 256) {
+    qualityBadge = "Четкий арт";
+  }
+
   infoBlocks.textContent = `${currentWidthBlocks} × ${currentHeightBlocks} блоков`;
   infoMaps.textContent = `${currentWidthBlocks * currentHeightBlocks} карт`;
   infoTier.textContent = isGrand ? "👑 Великий" : "🖼️ Стандарт";
   infoTier.style.color = isGrand ? "#d8b4fe" : "#93c5fd";
-  infoResolution.textContent = `${currentWidthBlocks * 128} × ${currentHeightBlocks * 128} px`;
+  infoResolution.textContent = `${wPixels} × ${hPixels} px (${qualityBadge})`;
 
   if (tierNotice) {
     if (isGrand) {
@@ -367,6 +387,8 @@ if (fitSelector) {
 // Draw Image onto Canvas with Smart Fitting Modes
 function drawImageToCanvas(ctx, img, targetW, targetH, mode = 'cover') {
   ctx.clearRect(0, 0, targetW, targetH);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   if (mode === 'stretch') {
     // Direct stretch
@@ -380,7 +402,7 @@ function drawImageToCanvas(ctx, img, targetW, targetH, mode = 'cover') {
   const targetRatio = targetW / targetH;
 
   if (mode === 'cover') {
-    // ✂️ УМНОЕ ЗАПОЛНЕНИЕ (КАК БЫЛО РАНЬШЕ):
+    // ✂️ УМНОЕ ЗАПОЛНЕНИЕ:
     // Сохраняет 100% исходных пропорций без растяжения лиц/объектов!
     // Симметрично центрирует и обрезает выступающие края, холст заполнен полностью.
     let sx, sy, sW, sH;
@@ -400,8 +422,10 @@ function drawImageToCanvas(ctx, img, targetW, targetH, mode = 'cover') {
     ctx.drawImage(img, sx, sy, sW, sH, 0, 0, targetW, targetH);
   } else if (mode === 'contain') {
     // 🖼️ ВПИСАТЬ ЦЕЛИКОМ (100% картинки без обрезки)
-    ctx.fillStyle = '#181920';
-    ctx.fillRect(0, 0, targetW, targetH);
+    if (!isAlphaCleanEnabled) {
+      ctx.fillStyle = '#181920';
+      ctx.fillRect(0, 0, targetW, targetH);
+    }
 
     let dx, dy, dW, dH;
     if (imgRatio > targetRatio) {
@@ -420,15 +444,89 @@ function drawImageToCanvas(ctx, img, targetW, targetH, mode = 'cover') {
 }
 
 // ==========================================
-// 4. CANVAS RENDERING & DITHERING
+// 4. CANVAS RENDERING, UNSHARP MASK & DITHERING
 // ==========================================
-ditherToggle.addEventListener('change', () => {
-  if (currentImage) renderCanvas();
-});
 
-gridToggle.addEventListener('change', () => {
-  if (currentImage) renderCanvas();
-});
+// Style Presets buttons (Photo, Anime/Art, Pixel/Logo)
+if (stylePresets) {
+  const presetBtns = stylePresets.querySelectorAll('.preset-btn');
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      presetBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const ditherVal = parseInt(btn.dataset.dither, 10);
+      currentDitherStrength = ditherVal / 100.0;
+      if (ditherStrengthInput) ditherStrengthInput.value = ditherVal;
+      if (ditherStrengthVal) ditherStrengthVal.textContent = `${ditherVal}%`;
+
+      if (currentImage) renderCanvas();
+    });
+  });
+}
+
+// Dither Strength Slider (0% to 100%)
+if (ditherStrengthInput) {
+  ditherStrengthInput.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    currentDitherStrength = val / 100.0;
+    if (ditherStrengthVal) ditherStrengthVal.textContent = `${val}%`;
+
+    // Highlight preset tab that corresponds to current value
+    if (stylePresets) {
+      const presetBtns = stylePresets.querySelectorAll('.preset-btn');
+      presetBtns.forEach(btn => {
+        const btnVal = parseInt(btn.dataset.dither, 10);
+        if (Math.abs(btnVal - val) <= 10) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    if (currentImage) renderCanvas();
+  });
+}
+
+// Unsharp Mask Sharpness Toggle
+if (sharpenToggle) {
+  sharpenToggle.addEventListener('change', () => {
+    isSharpenEnabled = sharpenToggle.checked;
+    if (currentImage) renderCanvas();
+  });
+}
+
+// Alpha Threshold Cleaner Toggle
+if (alphaCleanToggle) {
+  alphaCleanToggle.addEventListener('change', () => {
+    isAlphaCleanEnabled = alphaCleanToggle.checked;
+    if (currentImage) renderCanvas();
+  });
+}
+
+// Grid Toggle
+if (gridToggle) {
+  gridToggle.addEventListener('change', () => {
+    if (currentImage) renderCanvas();
+  });
+}
+
+// Backward compatibility if ditherToggle still exists
+if (ditherToggle) {
+  ditherToggle.addEventListener('change', () => {
+    if (!ditherToggle.checked) {
+      currentDitherStrength = 0;
+      if (ditherStrengthInput) ditherStrengthInput.value = 0;
+      if (ditherStrengthVal) ditherStrengthVal.textContent = "0%";
+    } else {
+      currentDitherStrength = 0.40;
+      if (ditherStrengthInput) ditherStrengthInput.value = 40;
+      if (ditherStrengthVal) ditherStrengthVal.textContent = "40%";
+    }
+    if (currentImage) renderCanvas();
+  });
+}
 
 function renderCanvas() {
   if (!currentImage) return;
@@ -439,8 +537,7 @@ function renderCanvas() {
   mainCanvas.width = targetW;
   mainCanvas.height = targetH;
 
-  // Рассчитываем пропорциональный размер предпросмотра на стене,
-  // чтобы картина всегда выглядела четко и красиво в деревянной рамке
+  // Рассчитываем пропорциональный размер предпросмотра на стене
   const maxDisplayW = 540;
   const maxDisplayH = 420;
   const aspect = targetW / targetH;
@@ -464,24 +561,111 @@ function renderCanvas() {
   mainCanvas.style.height = `${dispHRounded}px`;
 
   const ctx = mainCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Отрисовка изображения с выбранным режимом кадрирования
   drawImageToCanvas(ctx, currentImage, targetW, targetH, currentFitMode);
 
-  if (ditherToggle.checked) {
-    applyFloydSteinbergDithering(ctx, targetW, targetH);
+  const alphaThreshold = isAlphaCleanEnabled ? 64 : 0;
+
+  // 1. Умная микро-резкость (Unsharp Mask перед сжатием в сетку)
+  if (isSharpenEnabled) {
+    applyUnsharpMask(ctx, targetW, targetH, 0.30, alphaThreshold);
   }
 
+  // 2. Квантование в палитру Minecraft + Дизеринг + Очистка прозрачности
+  applyPaletteAndDithering(ctx, targetW, targetH, currentDitherStrength, alphaThreshold);
+
+  // 3. Сетка блоков на стене
   renderGridOverlay();
 }
 
+/**
+ * 1. Фильтр предварительной резкости (Unsharp Mask):
+ * Усиливает микро-контраст контуров, глаз, мелких деталей и текста,
+ * предотвращая замыливание при интерполяции и дизеринге.
+ */
+function applyUnsharpMask(ctx, width, height, strength = 0.30, alphaThreshold = 64) {
+  const imgData = ctx.getImageData(0, 0, width, height);
+  const data = imgData.data;
+  const copy = new Uint8ClampedArray(data);
+
+  // Gaussian-like 3x3 kernel (radius ~1-1.5px):
+  // [1, 2, 1]
+  // [2, 4, 2]
+  // [1, 2, 1]  sum = 16
+  const kernel = [
+    1, 2, 1,
+    2, 4, 2,
+    1, 2, 1
+  ];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const alpha = copy[idx + 3];
+      if (alphaThreshold > 0 && alpha < alphaThreshold) continue;
+
+      let rSum = 0, gSum = 0, bSum = 0, weightSum = 0;
+      let kIdx = 0;
+
+      for (let ky = -1; ky <= 1; ky++) {
+        const ny = Math.min(height - 1, Math.max(0, y + ky));
+        for (let kx = -1; kx <= 1; kx++) {
+          const nx = Math.min(width - 1, Math.max(0, x + kx));
+          const w = kernel[kIdx++];
+          const nIdx = (ny * width + nx) * 4;
+
+          if (alphaThreshold === 0 || copy[nIdx + 3] >= alphaThreshold) {
+            rSum += copy[nIdx] * w;
+            gSum += copy[nIdx + 1] * w;
+            bSum += copy[nIdx + 2] * w;
+            weightSum += w;
+          }
+        }
+      }
+
+      if (weightSum > 0) {
+        const blurR = rSum / weightSum;
+        const blurG = gSum / weightSum;
+        const blurB = bSum / weightSum;
+
+        const origR = copy[idx];
+        const origG = copy[idx + 1];
+        const origB = copy[idx + 2];
+
+        // Sharpen = original + strength * (original - blur)
+        data[idx] = Math.min(255, Math.max(0, Math.round(origR + strength * (origR - blurR))));
+        data[idx + 1] = Math.min(255, Math.max(0, Math.round(origG + strength * (origG - blurG))));
+        data[idx + 2] = Math.min(255, Math.max(0, Math.round(origB + strength * (origB - blurB))));
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Быстрый кэш сопоставления цветов в палитре (Memoization Map)
+const colorMatchCache = new Map();
+
 function findClosestColor(r, g, b) {
+  const ir = Math.min(255, Math.max(0, Math.round(r)));
+  const ig = Math.min(255, Math.max(0, Math.round(g)));
+  const ib = Math.min(255, Math.max(0, Math.round(b)));
+  const key = (ir << 16) | (ig << 8) | ib;
+
+  const cached = colorMatchCache.get(key);
+  if (cached) return cached;
+
   let minDistance = Infinity;
   let closest = FULL_PALETTE[0];
 
   for (let i = 0; i < FULL_PALETTE.length; i++) {
     const pal = FULL_PALETTE[i];
-    const dr = r - pal[0];
-    const dg = g - pal[1];
-    const db = b - pal[2];
+    const dr = ir - pal[0];
+    const dg = ig - pal[1];
+    const db = ib - pal[2];
     const dist = dr * dr * 2 + dg * dg * 4 + db * db * 3;
     if (dist < minDistance) {
       minDistance = dist;
@@ -489,16 +673,37 @@ function findClosestColor(r, g, b) {
       if (dist === 0) break;
     }
   }
+
+  colorMatchCache.set(key, closest);
   return closest;
 }
 
-function applyFloydSteinbergDithering(ctx, width, height) {
+/**
+ * 2 & 3. Применение палитры Minecraft, настраиваемый дизеринг и очистка прозрачности
+ */
+function applyPaletteAndDithering(ctx, width, height, ditherStrength = 0.40, alphaThreshold = 64) {
+  if (colorMatchCache.size > 50000) colorMatchCache.clear();
+
   const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
+      const alpha = data[idx + 3];
+
+      // 3. Очистка прозрачности для PNG без фона (Alpha Threshold)
+      if (alphaThreshold > 0 && alpha < alphaThreshold) {
+        data[idx] = 0;
+        data[idx + 1] = 0;
+        data[idx + 2] = 0;
+        data[idx + 3] = 0;
+        continue;
+      }
+
+      // Видимые пиксели делаем 100% непрозрачными
+      data[idx + 3] = 255;
+
       const oldR = data[idx];
       const oldG = data[idx + 1];
       const oldB = data[idx + 2];
@@ -509,28 +714,47 @@ function applyFloydSteinbergDithering(ctx, width, height) {
       data[idx + 1] = newG;
       data[idx + 2] = newB;
 
-      const errR = oldR - newR;
-      const errG = oldG - newG;
-      const errB = oldB - newB;
+      // При силе дизеринга 0% (Nearest Neighbor для лого/текста) рассеивание ошибки отключается
+      if (ditherStrength <= 0.001) {
+        continue;
+      }
+
+      // Квантованная ошибка цвета, масштабированная силой дизеринга (0.0 - 1.0)
+      const errR = (oldR - newR) * ditherStrength;
+      const errG = (oldG - newG) * ditherStrength;
+      const errB = (oldB - newB) * ditherStrength;
 
       const distributeError = (dx, dy, factor) => {
         const nx = x + dx;
         const ny = y + dy;
         if (nx >= 0 && nx < width && ny < height) {
           const nIdx = (ny * width + nx) * 4;
+          // КРИТИЧНО: Не рассеивать ошибку в прозрачные пиксели!
+          if (alphaThreshold > 0 && data[nIdx + 3] < alphaThreshold) {
+            return;
+          }
           data[nIdx] = Math.min(255, Math.max(0, data[nIdx] + errR * factor));
           data[nIdx + 1] = Math.min(255, Math.max(0, data[nIdx + 1] + errG * factor));
           data[nIdx + 2] = Math.min(255, Math.max(0, data[nIdx + 2] + errB * factor));
         }
       };
 
+      // Рассеивание ошибки Флойда-Стейнберга:
+      //         X    7/16
+      // 3/16  5/16   1/16
       distributeError(1, 0, 7 / 16);
       distributeError(-1, 1, 3 / 16);
       distributeError(0, 1, 5 / 16);
       distributeError(1, 1, 1 / 16);
     }
   }
+
   ctx.putImageData(imgData, 0, 0);
+}
+
+// Обратная совместимость для старых вызовов
+function applyFloydSteinbergDithering(ctx, width, height) {
+  applyPaletteAndDithering(ctx, width, height, currentDitherStrength, isAlphaCleanEnabled ? 64 : 0);
 }
 
 function renderGridOverlay() {

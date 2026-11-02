@@ -359,6 +359,147 @@ body {
   margin-left: 2.85rem;
 }
 
+/* Style Presets */
+.style-presets-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.preset-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  padding: 0.65rem 0.4rem;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.preset-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.preset-btn.active {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: var(--accent-gold);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.22);
+}
+
+.preset-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.preset-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.preset-meta {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.preset-btn.active .preset-meta {
+  color: #fef08a;
+}
+
+/* Slider Controls */
+.slider-control-group {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.45rem;
+}
+
+.slider-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.slider-value-badge {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid var(--accent-gold);
+  color: #fef08a;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 44px;
+  text-align: center;
+}
+
+.custom-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  background: #334155;
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.custom-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.custom-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #fbbf24;
+}
+
+.custom-range-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.slider-hints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
+.divider-subtle {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.75rem 0;
+}
+
 /* Admin Hidden Artwork Controls */
 .admin-hidden-option {
   background: rgba(147, 51, 234, 0.12);
@@ -532,6 +673,14 @@ body {
   overflow: hidden;
   box-sizing: content-box;
   flex-shrink: 0;
+  background-color: #1a1e28;
+  background-image: 
+    linear-gradient(45deg, #13161f 25%, transparent 25%), 
+    linear-gradient(-45deg, #13161f 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #13161f 75%), 
+    linear-gradient(-45deg, transparent 75%, #13161f 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
 }
 
 #mainCanvas {
