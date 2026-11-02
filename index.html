@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nirhalla Art Studio — Картины для Minecraft</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -196,6 +196,9 @@
 
           <h2 class="card-title mt-4">5. Режим обработки и стиля</h2>
           <div class="options-box">
+            <!-- Скрытый fallback ditherToggle для 100% совместимости с кэшированным JS -->
+            <input type="checkbox" id="ditherToggle" style="display: none;" checked>
+
             <!-- Выбор стиля / Пресеты дизеринга -->
             <label class="form-label mb-2" style="display: block; font-weight: 600;">Стиль конвертации в палитру:</label>
             <div class="style-presets-row" id="stylePresets">
@@ -568,6 +571,6 @@
     <p>Nirhalla Art Studio • Официальный сервис для сервера <strong>nirhalla.online</strong> • Совместимо с Paper, Spigot, GeyserMC и Floodgate • 2026</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>

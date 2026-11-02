@@ -779,22 +779,27 @@ function renderGridOverlay() {
   }
 }
 
-viewWallBtn.addEventListener('click', () => {
-  viewWallBtn.classList.add('active');
-  viewPureBtn.classList.remove('active');
-  wallScene.style.background = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'64\' height=\'64\' fill=\'%23141720\'><rect width=\'64\' height=\'64\' fill=\'%231a1e29\'/><rect width=\'30\' height=\'30\' fill=\'%231f2430\'/><rect x=\'32\' y=\'32\' width=\'30\' height=\'30\' fill=\'%231f2430\'/></svg>") repeat';
-});
+if (viewWallBtn) {
+  viewWallBtn.addEventListener('click', () => {
+    viewWallBtn.classList.add('active');
+    if (viewPureBtn) viewPureBtn.classList.remove('active');
+    if (wallScene) wallScene.style.background = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'64\' height=\'64\' fill=\'%23141720\'><rect width=\'64\' height=\'64\' fill=\'%231a1e29\'/><rect width=\'30\' height=\'30\' fill=\'%231f2430\'/><rect x=\'32\' y=\'32\' width=\'30\' height=\'30\' fill=\'%231f2430\'/></svg>") repeat';
+  });
+}
 
-viewPureBtn.addEventListener('click', () => {
-  viewPureBtn.classList.add('active');
-  viewWallBtn.classList.remove('active');
-  wallScene.style.background = 'transparent';
-});
+if (viewPureBtn) {
+  viewPureBtn.addEventListener('click', () => {
+    viewPureBtn.classList.add('active');
+    if (viewWallBtn) viewWallBtn.classList.remove('active');
+    if (wallScene) wallScene.style.background = 'transparent';
+  });
+}
 
 // ==========================================
 // 4. UPLOAD / PUBLISH LOGIC
 // ==========================================
-generateBtn.addEventListener('click', async () => {
+if (generateBtn) {
+  generateBtn.addEventListener('click', async () => {
   if (generateBtn.disabled) return;
 
   const originalText = generateBtn.textContent;
@@ -916,24 +921,31 @@ generateBtn.addEventListener('click', async () => {
   }, 1000);
 
   loadGallery(false);
-});
-
-copyCmdBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(commandInput.value).then(() => {
-    copyCmdBtn.textContent = '✅ Скопировано!';
-    setTimeout(() => {
-      copyCmdBtn.textContent = '📋 Скопировать';
-    }, 2000);
   });
-});
+}
 
-closeModalBtn.addEventListener('click', () => {
-  resultModal.style.display = 'none';
-});
+if (copyCmdBtn) {
+  copyCmdBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(commandInput.value).then(() => {
+      copyCmdBtn.textContent = '✅ Скопировано!';
+      setTimeout(() => {
+        if (copyCmdBtn) copyCmdBtn.textContent = '📋 Скопировать';
+      }, 2000);
+    });
+  });
+}
 
-resultModal.addEventListener('click', e => {
-  if (e.target === resultModal) resultModal.style.display = 'none';
-});
+if (closeModalBtn) {
+  closeModalBtn.addEventListener('click', () => {
+    if (resultModal) resultModal.style.display = 'none';
+  });
+}
+
+if (resultModal) {
+  resultModal.addEventListener('click', e => {
+    if (e.target === resultModal) resultModal.style.display = 'none';
+  });
+}
 
 // ==========================================
 // 5. STAFF AUTHENTICATION (Niral + Mods)
@@ -1491,28 +1503,36 @@ if (btnRefreshAudit) {
 // ==========================================
 // 7. GALLERY & CATEGORIES
 // ==========================================
-tabEditorBtn.addEventListener('click', () => {
-  tabEditorBtn.classList.add('active');
-  tabGalleryBtn.classList.remove('active');
-  editorView.style.display = 'block';
-  galleryView.style.display = 'none';
-});
+if (tabEditorBtn) {
+  tabEditorBtn.addEventListener('click', () => {
+    tabEditorBtn.classList.add('active');
+    if (tabGalleryBtn) tabGalleryBtn.classList.remove('active');
+    if (editorView) editorView.style.display = 'block';
+    if (galleryView) galleryView.style.display = 'none';
+  });
+}
 
-tabGalleryBtn.addEventListener('click', () => {
-  tabGalleryBtn.classList.add('active');
-  tabEditorBtn.classList.remove('active');
-  editorView.style.display = 'none';
-  galleryView.style.display = 'flex';
-  loadGallery();
-});
+if (tabGalleryBtn) {
+  tabGalleryBtn.addEventListener('click', () => {
+    tabGalleryBtn.classList.add('active');
+    if (tabEditorBtn) tabEditorBtn.classList.remove('active');
+    if (editorView) editorView.style.display = 'none';
+    if (galleryView) galleryView.style.display = 'flex';
+    loadGallery();
+  });
+}
 
-refreshGalleryBtn.addEventListener('click', () => {
-  loadGallery(true);
-});
+if (refreshGalleryBtn) {
+  refreshGalleryBtn.addEventListener('click', () => {
+    loadGallery(true);
+  });
+}
 
-gallerySearchInput.addEventListener('input', () => {
-  renderGalleryGrid();
-});
+if (gallerySearchInput) {
+  gallerySearchInput.addEventListener('input', () => {
+    renderGalleryGrid();
+  });
+}
 
 // Category pills listener
 if (categoryFilterBar) {
